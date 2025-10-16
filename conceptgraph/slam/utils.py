@@ -796,6 +796,13 @@ def merge_objects(
         return objects
     
 def filter_captions(captions, detection_class_labels):
+    # Gracefully handle missing captions or labels
+    if detection_class_labels is None:
+        return []
+
+    if captions is None:
+        captions = []
+
     # Create a dictionary to map id to the index in the captions list
     captions_index = {item['id']: index for index, item in enumerate(captions)}
     
@@ -816,7 +823,7 @@ def filter_captions(captions, detection_class_labels):
             # Add the caption from the captions list to the new list
             new_captions.append(captions[captions_index[id_str]])
         else:
-            # Add a new entry with a None caption
+            # Add a new entry with a default/empty caption to avoid NoneType errors downstream
             new_captions.append({"id": id_str, "name": name, "caption": None})
     
     return new_captions

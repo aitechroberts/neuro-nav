@@ -444,6 +444,7 @@ def make_vlm_edges_and_captions(image, curr_det, obj_classes, detection_class_la
     
     edges = []
     edge_image = None
+    captions = None
     if make_edges_flag:
         vis_save_path_for_vlm = get_vlm_annotated_image_path(det_exp_vis_path, color_path)
         vis_save_path_for_vlm_edges = get_vlm_annotated_image_path(det_exp_vis_path, color_path, w_edges=True)
@@ -685,7 +686,7 @@ def save_obj_json(exp_suffix, exp_out_path, objects):
         obj_dict = {
             "id": curr_obj['curr_obj_num'],
             "object_tag": curr_obj['class_name'],
-            "object_caption": curr_obj['consolidated_caption'],
+            "object_caption": curr_obj.get('consolidated_caption', None),
             "bbox_extent": bbox_extent,
             "bbox_center": bbox_center,
             "bbox_volume": bbox_volume  # Add the volume to the dictionary

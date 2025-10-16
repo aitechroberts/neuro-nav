@@ -187,7 +187,10 @@ def main(cfg : DictConfig):
     else:
         print("\n".join(["NOT Running detections..."] * 10))
 
-    openai_client = get_openai_client()
+    # Only initialize OpenAI when edges/captions are enabled
+    openai_client = None
+    if cfg.make_edges:
+        openai_client = get_openai_client()
 
     save_hydra_config(cfg, exp_out_path)
     save_hydra_config(detections_exp_cfg, exp_out_path, is_detection_config=True)
@@ -504,20 +507,36 @@ def main(cfg : DictConfig):
             frame_idx,
             is_final_frame,
         ):
-            objects, map_edges = measure_time(merge_objects)(
-                merge_overlap_thresh=cfg["merge_overlap_thresh"],
-                merge_visual_sim_thresh=cfg["merge_visual_sim_thresh"],
-                merge_text_sim_thresh=cfg["merge_text_sim_thresh"],
-                objects=objects,
-                downsample_voxel_size=cfg["downsample_voxel_size"],
-                dbscan_remove_noise=cfg["dbscan_remove_noise"],
-                dbscan_eps=cfg["dbscan_eps"],
-                dbscan_min_points=cfg["dbscan_min_points"],
-                spatial_sim_type=cfg["spatial_sim_type"],
-                device=cfg["device"],
-                do_edges=cfg["make_edges"],
-                map_edges=map_edges
-            )
+            if cfg["make_edges"]:
+                objects, map_edges = measure_time(merge_objects)(
+                    merge_overlap_thresh=cfg["merge_overlap_thresh"],
+                    merge_visual_sim_thresh=cfg["merge_visual_sim_thresh"],
+                    merge_text_sim_thresh=cfg["merge_text_sim_thresh"],
+                    objects=objects,
+                    downsample_voxel_size=cfg["downsample_voxel_size"],
+                    dbscan_remove_noise=cfg["dbscan_remove_noise"],
+                    dbscan_eps=cfg["dbscan_eps"],
+                    dbscan_min_points=cfg["dbscan_min_points"],
+                    spatial_sim_type=cfg["spatial_sim_type"],
+                    device=cfg["device"],
+                    do_edges=True,
+                    map_edges=map_edges
+                )
+            else:
+                objects = measure_time(merge_objects)(
+                    merge_overlap_thresh=cfg["merge_overlap_thresh"],
+                    merge_visual_sim_thresh=cfg["merge_visual_sim_thresh"],
+                    merge_text_sim_thresh=cfg["merge_text_sim_thresh"],
+                    objects=objects,
+                    downsample_voxel_size=cfg["downsample_voxel_size"],
+                    dbscan_remove_noise=cfg["dbscan_remove_noise"],
+                    dbscan_eps=cfg["dbscan_eps"],
+                    dbscan_min_points=cfg["dbscan_min_points"],
+                    spatial_sim_type=cfg["spatial_sim_type"],
+                    device=cfg["device"],
+                    do_edges=False,
+                    map_edges=None
+                )
         orr_log_objs_pcd_and_bbox(objects, obj_classes)
         orr_log_edges(objects, map_edges, obj_classes)
 
@@ -583,11 +602,12 @@ def main(cfg : DictConfig):
                 })
     # LOOP OVER -----------------------------------------------------
     
-    # Consolidate captions 
-    for object in objects:
-        obj_captions = object['captions'][:20]
-        consolidated_caption = consolidate_captions(openai_client, obj_captions)
-        object['consolidated_caption'] = consolidated_caption
+    # Consolidate captions only when edges/captions are enabled
+    if cfg.make_edges:
+        for object in objects:
+            obj_captions = object['captions'][:20]
+            consolidated_caption = consolidate_captions(openai_client, obj_captions)
+            object['consolidated_caption'] = consolidated_caption
 
     handle_rerun_saving(cfg.use_rerun, cfg.save_rerun, cfg.exp_suffix, exp_out_path)
 

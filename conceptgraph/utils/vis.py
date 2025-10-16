@@ -202,7 +202,7 @@ def vis_result_fast_on_depth(
     depth_image: np.ndarray, 
     detections: sv.Detections, 
     classes: list[str], 
-    color: Color | ColorPalette = ColorPalette.default(), 
+    color: Color | ColorPalette = ColorPalette.DEFAULT, 
     instance_random_color: bool = False,
     draw_bbox: bool = True,
 ) -> np.ndarray:
@@ -211,17 +211,13 @@ def vis_result_fast_on_depth(
     This is fast but of the same resolution of the input image, thus can be blurry. 
     '''
     # annotate image with detections
-    box_annotator = sv.BoxAnnotator(
-        color = color,
-        text_scale=0.3,
-        text_thickness=1,
-        text_padding=2,
-    )
+    box_annotator = sv.BoxAnnotator(color=color)
     mask_annotator = sv.MaskAnnotator(
         color = color,
         opacity=0.2,
     )
 
+    labels = None
     if hasattr(detections, 'confidence') and hasattr(detections, 'class_id'):
         confidences = detections.confidence
         class_ids = detections.class_id
@@ -243,9 +239,23 @@ def vis_result_fast_on_depth(
         detections.class_id = np.arange(len(detections))
         
     annotated_image = mask_annotator.annotate(scene=depth_image.copy(), detections=detections)
-    
+
     if draw_bbox:
-        annotated_image = box_annotator.annotate(scene=annotated_image, detections=detections, labels=labels)
+        annotated_image = box_annotator.annotate(scene=annotated_image, detections=detections)
+        # Manually draw labels for compatibility with newer supervision API
+        if labels is not None:
+            for i, (x1, y1, x2, y2) in enumerate(detections.xyxy.astype(int)):
+                text = labels[i]
+                cv2.putText(
+                    annotated_image,
+                    text,
+                    (int(x1), max(0, int(y1) - 5)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (255, 255, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
     return annotated_image, labels
 
 
@@ -462,7 +472,7 @@ def vis_result_for_vlm(
     image: np.ndarray, 
     detections: sv.Detections, 
     labels: list[str], 
-    color: Color | ColorPalette = ColorPalette.default(), 
+    color: Color | ColorPalette = ColorPalette.DEFAULT, 
     draw_bbox: bool = True,
     thickness: int = 2,
     text_scale: float = 0.3,
@@ -497,7 +507,7 @@ def vis_result_fast(
     image: np.ndarray, 
     detections: sv.Detections, 
     classes: list[str], 
-    color: Color | ColorPalette = ColorPalette.default(), 
+    color: Color | ColorPalette = ColorPalette.DEFAULT, 
     instance_random_color: bool = False,
     draw_bbox: bool = True,
 ) -> np.ndarray:
@@ -506,16 +516,12 @@ def vis_result_fast(
     This is fast but of the same resolution of the input image, thus can be blurry. 
     '''
     # annotate image with detections
-    box_annotator = sv.BoxAnnotator(
-        color = color,
-        text_scale=0.3,
-        text_thickness=1,
-        text_padding=2,
-    )
+    box_annotator = sv.BoxAnnotator(color=color)
     mask_annotator = sv.MaskAnnotator(
         color = color
     )
 
+    labels = None
     if hasattr(detections, 'confidence') and hasattr(detections, 'class_id'):
         confidences = detections.confidence
         class_ids = detections.class_id
@@ -537,9 +543,23 @@ def vis_result_fast(
         detections.class_id = np.arange(len(detections))
         
     annotated_image = mask_annotator.annotate(scene=image.copy(), detections=detections)
-    
+
     if draw_bbox:
-        annotated_image = box_annotator.annotate(scene=annotated_image, detections=detections, labels=labels)
+        annotated_image = box_annotator.annotate(scene=annotated_image, detections=detections)
+        # Manually draw labels for compatibility with newer supervision API
+        if labels is not None:
+            for i, (x1, y1, x2, y2) in enumerate(detections.xyxy.astype(int)):
+                text = labels[i]
+                cv2.putText(
+                    annotated_image,
+                    text,
+                    (int(x1), max(0, int(y1) - 5)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (255, 255, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
     return annotated_image, labels
 
 def vis_result_slow_caption(image, masks, boxes_filt, pred_phrases, caption, text_prompt):
