@@ -13,6 +13,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import List, Literal, Union
 from textwrap import wrap
+
 from conceptgraph.utils.general_utils import prjson
 
 import cv2
@@ -262,6 +263,20 @@ def extract_node_captions(args):
     #     get_model_and_preprocessor,
     #     preprocess_and_encode_pil_image,
     # )
+
+    # Load class names from the json or text file
+    # otherwise raise an error
+    class_names = None
+    with open(Path(args.class_names_file), "r") as f:
+
+        if Path(args.class_names_file).suffix == ".json":
+            class_names = json.load(f)
+        elif Path(args.class_names_file).suffix == ".txt":
+            class_names = [cls.strip() for cls in f.readlines()]
+        else:
+            raise ValueError("Class names file must be either a json or text file")
+        
+    print(f"Line 280, class_names: {class_names}")
 
     # Creating a namespace object to pass args to the LLaVA chat object
     chat_args = SimpleNamespace()
@@ -529,7 +544,8 @@ def extract_object_tag_from_json_str(json_str):
 
 def build_scenegraph(args):
     from conceptgraph.slam.slam_classes import MapObjectList
-    from conceptgraph.slam.utils import compute_overlap_matrix
+    # from conceptgraph.slam.utils import compute_overlap_matrix
+    from conceptgraph.slam.utils import compute_overlap_matrix_general
 
     # Load the scene map
     scene_map = MapObjectList()
@@ -619,7 +635,7 @@ def build_scenegraph(args):
         pkl.dump(scene_map.to_serializable(), f)
 
     print("Computing bounding box overlaps...")
-    bbox_overlaps = compute_overlap_matrix(args, scene_map)
+    bbox_overlaps = compute_overlap_matrix_general(args, scene_map)
 
     # Construct a weighted adjacency matrix based on similarity scores
     weights = []
