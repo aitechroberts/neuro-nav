@@ -8,9 +8,15 @@ manipulation/contact_graspnet/test_data
 manipulation/contact_graspnet/checkpoints
 manipulation/dataset
 env_vars.bash
+*.bash.template
 
 outputs
 wandb
+*.pt
+*.deb
+neuro-nav/cuda-keyring_1.1-1_all.deb
+latest_pcd_save
+neuro-nav/latest_pcd_save
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

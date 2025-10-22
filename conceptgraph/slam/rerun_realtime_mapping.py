@@ -173,8 +173,8 @@ def main(cfg : DictConfig):
         det_exp_path.mkdir(parents=True, exist_ok=True)
 
         ## Initialize the detection models
-        detection_model = measure_time(YOLO)('yolov8l-world.pt')
-        sam_predictor = SAM('sam_l.pt') # SAM('mobile_sam.pt') # UltraLytics SAM
+        detection_model = measure_time(YOLO)('yolov8l-worldv2.pt')
+        sam_predictor = SAM('sam2.1_s.pt') # SAM('mobile_sam.pt') # UltraLytics SAM
         # sam_predictor = measure_time(get_sam_predictor)(cfg) # Normal SAM
         clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
             "ViT-H-14", "laion2b_s32b_b79k"
@@ -253,14 +253,37 @@ def main(cfg : DictConfig):
 
             # if there are detections,
             # Get Masks Using SAM or MobileSAM
-            # UltraLytics SAM
+# UltraLytics SAM -> masks
             if xyxy_tensor.numel() != 0:
                 sam_out = sam_predictor.predict(color_path, bboxes=xyxy_tensor, verbose=False)
-                masks_tensor = sam_out[0].masks.data
 
-                masks_np = masks_tensor.cpu().numpy()
+                # (C,H,W) torch -> numpy boolean (N,H,W)
+                masks_tensor = sam_out[0].masks.data  # shape (M, H, W), M may differ from len(xyxy)
+                masks_np = masks_tensor.detach().cpu().numpy()
+                # binarize and ensure 3D (N,H,W)
+                if masks_np.dtype != np.bool_:
+                    masks_np = masks_np > 0.5
+
+                # Align counts between boxes, scores, class ids, and masks
+                n_boxes = xyxy_np.shape[0]
+                n_masks = masks_np.shape[0]
+                if n_masks == 0 or n_boxes == 0:
+                    # No valid detections for this frame — skip gracefully
+                    continue
+
+                n = min(n_boxes, n_masks)
+                if n != n_boxes or n != n_masks:
+                    # Trim everything to the shared length
+                    xyxy_np = xyxy_np[:n]
+                    confidences = confidences[:n]
+                    detection_class_ids = detection_class_ids[:n]
+                    masks_np = masks_np[:n]
             else:
-                masks_np = np.empty((0, *color_tensor.shape[:2]), dtype=np.float64)
+                # No boxes -> no masks
+                xyxy_np = np.empty((0, 4), dtype=np.float32)
+                confidences = np.empty((0,), dtype=np.float32)
+                detection_class_ids = np.empty((0,), dtype=np.int32)
+                masks_np = np.empty((0, *color_tensor.shape[:2]), dtype=np.bool_)
 
             # Create a detections object that we will save later
             curr_det = sv.Detections(
