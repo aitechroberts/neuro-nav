@@ -30,6 +30,7 @@ dependencies = [
     "tyro>=0.9.35",
     "ultralytics>=8.3.218",
     "wandb>=0.22.2",
+    "pytorch3d @ https://github.com/aitechroberts/neuro-nav/releases/download/pytorch3d-0.7.8-cu126-neuro-nav/pytorch3d-0.7.8-cp310-cp310-linux_x86_64.whl"
 ]
 
 
@@ -41,3 +42,10 @@ explicit = true
 [tool.uv.sources]
 clip = { git = "https://github.com/ultralytics/CLIP.git" }
 
+[tool.setuptools]
+# if you have package data, we can add [tool.setuptools.package-data] later
+
+# Tell setuptools to *find only* the conceptgraph package, and ignore others like "assets"
+[tool.setuptools.packages.find]
+include = ["conceptgraph*"]
+exclude = ["tests*", "assets*", "docs*", "scripts*"]
