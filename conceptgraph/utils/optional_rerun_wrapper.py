@@ -215,10 +215,10 @@ def orr_log_objs_pcd_and_bbox(objects, obj_classes):
 
         # Assuming bbox is extracted as before
         bbox = obj['bbox']
-        centers = [bbox.center]
-        half_sizes = [bbox.extent /2 ]
+        centers = [bbox.get_center()]  # Use get_center() method for Open3D bounding boxes
+        half_sizes = [bbox.get_extent() / 2]  # Use get_extent() method
         # Convert rotation matrix to quaternion
-        bbox_quaternion = [rotation_matrix_to_quaternion(bbox.R)]
+        bbox_quaternion = [rotation_matrix_to_quaternion(np.eye(3))]  # Use identity rotation for axis-aligned bbox
 
         bbox_entity = base_entity_path + "/bbox" + f"/{obj_label}"
         orr.log(

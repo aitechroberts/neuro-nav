@@ -1,0 +1,47 @@
+defaults:
+  - base
+  - base_mapping
+  - replica  # Use Replica dataset
+  - sam
+  - classes
+  - logging_level
+  - _self_
+
+# Simple test configuration for Rerun visualization
+detections_exp_suffix: s_detections_rerun_test
+force_detection: !!bool True
+save_detections: !!bool False  # Don't save to make it faster
+
+start: 0
+end: 30  # Process only first 30 frames for quick test
+stride: 3  # Process every 3rd frame
+
+exp_suffix: r_mapping_rerun_test
+
+# Disable features that need PyTorch3D
+denoise_interval: -1
+filter_interval: -1
+merge_interval: -1
+run_denoise_final_frame: !!bool False
+run_filter_final_frame: !!bool False
+run_merge_final_frame: !!bool False
+
+# Simple settings
+downsample_voxel_size: 0.01
+obj_pcd_max_points: 5000
+obj_min_detections: 1
+
+# Use GIOU (no PyTorch3D needed)
+use_iou: !!bool True
+spatial_sim_type: giou
+
+# Enable Rerun visualization
+use_rerun: !!bool True
+save_rerun: !!bool True
+
+# Disable other rendering
+vis_render: !!bool False
+debug_render: !!bool False
+save_video: !!bool False
+save_objects_all_frames: !!bool False
+

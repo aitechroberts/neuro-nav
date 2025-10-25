@@ -893,8 +893,10 @@ def filter_gobs(
         else:
             raise NotImplementedError(f"Unhandled type {type(gobs[attribute])}")
         
-    filtered_captions = filter_captions(gobs['captions'], gobs['detection_class_labels'])
-    gobs['captions'] = filtered_captions
+    # Only filter captions if they exist in the detection results
+    if 'captions' in gobs and 'detection_class_labels' in gobs:
+        filtered_captions = filter_captions(gobs['captions'], gobs['detection_class_labels'])
+        gobs['captions'] = filtered_captions
 
     return gobs
 
@@ -1102,7 +1104,7 @@ def make_detection_list_from_pcd_and_gobs(
             'color_path' : [color_path],                     # path to the RGB image
             'class_name' : curr_class_name,                         # global class id for this detection
             'class_id' : [curr_class_idx],                         # global class id for this detection
-            'captions' : [gobs['captions'][mask_idx]],           # captions for this detection
+            'captions' : [gobs['captions'][mask_idx]] if 'captions' in gobs else [curr_class_name],  # Use captions if available, otherwise use class name
             'num_detections' : 1,                            # number of detections in this object
             'mask': [gobs['mask'][mask_idx]],
             'xyxy': [gobs['xyxy'][mask_idx]],

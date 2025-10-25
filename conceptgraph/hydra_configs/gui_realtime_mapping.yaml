@@ -1,7 +1,7 @@
 defaults:
   - base
   - base_mapping
-  - record3d # replica
+  - replica # Use replica dataset for testing
   - sam
   - classes
   - logging_level
@@ -12,16 +12,18 @@ defaults:
 #   verbose : true
 
 # detections_exp_suffix: exp_s_detections_stride50_yes_bg_44_mr
-detections_exp_suffix: s_detections_stride1_4 # s_detections_stride10_5 # s_detections_stride10_12 # r_detections_stride1000_2
-force_detection: !!bool False
-save_detections: !!bool True
+detections_exp_suffix: s_detections_test_simple
+force_detection: !!bool True  # Run detections on the fly
+save_detections: !!bool True  # Save detections for debugging
 
 # obj_min_detections: 1
 
-stride: 50
-exp_suffix: r_mapping_stride10_new5
-save_video: !!bool True
-save_objects_all_frames: !!bool True
+start: 0  # Start from beginning
+end: 50  # Process only first 50 frames for quick test
+stride: 5  # Process every 5th frame (faster updates)
+exp_suffix: r_mapping_test_simple
+save_video: !!bool False  # Disable to make it faster
+save_objects_all_frames: !!bool False  # Disable to make it faster
 # merge_interval: 5
 # log_level: INFO
 downsample_voxel_size: 0.01
@@ -30,11 +32,11 @@ obj_pcd_max_points: 5000
 debug_render: !!bool False
 
 denoise_interval: -1           # Run DBSCAN every k frame. This operation is heavy
-filter_interval: 5            # Filter objects that have too few associations or are too small
-merge_interval: 5             # Merge objects based on geometric and semantic similarity
-run_denoise_final_frame: !!bool True
-run_filter_final_frame: !!bool True
-run_merge_final_frame: !!bool True
+filter_interval: -1           # Disable filtering to avoid issues
+merge_interval: -1            # Disable merging (requires PyTorch3D)
+run_denoise_final_frame: !!bool False  # Disable to avoid PyTorch3D
+run_filter_final_frame: !!bool False   # Disable for simplicity
+run_merge_final_frame: !!bool False    # Disable to avoid PyTorch3D
 
 dbscan_remove_noise: !!bool True
 dbscan_eps: 0.1

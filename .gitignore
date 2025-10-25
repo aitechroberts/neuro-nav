@@ -185,3 +185,4 @@ cfslam/wandb
 cfslam/tmp.png
 cfslam/temp.json
 outputs
+data/

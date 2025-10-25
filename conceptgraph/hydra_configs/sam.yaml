@@ -1,4 +1,6 @@
+# Note: The gui_realtime_mapping.py uses Ultralytics SAM which downloads models automatically
+# These paths are not used by the current implementation
 sam_variant: sam # sam
 sam_encoder_version: "vit_h"
-sam_checkpoint_path: /home/kuwajerw/repos/new_segment_anything/Grounded-Segment-Anything/sam_vit_h_4b8939.pth
-mobile_sam_path: /home/kuwajerw/repos/new_segment_anything/Grounded-Segment-Anything/mobile_sam.pt
+sam_checkpoint_path: null  # Not needed for Ultralytics SAM
+mobile_sam_path: null  # Not needed for Ultralytics SAM
