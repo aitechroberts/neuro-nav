@@ -18,7 +18,29 @@ Perfect for exploring: **What does a robot actually need to understand about a s
 
 ---
 
-## 🚀 How to Get Back to the Working State
+## 🔄 Quick Restart (After Closing)
+
+**Everything is saved!** Just run these 3 commands:
+
+```bash
+cd ~/projects/neuro-nav
+git checkout jesse-dev
+source .venv/bin/activate && source ./use-cuda-126.sh
+python conceptgraph/slam/rerun_realtime_mapping.py --config-name=rerun_simple_test
+```
+
+**What's Persistent:**
+- ✅ Code committed to `jesse-dev` branch
+- ✅ Virtual environment (`.venv`) stays on disk
+- ✅ Replica dataset (12GB) stays in `data/`
+- ✅ Downloaded models cached in `~/.cache/`
+- ✅ All your configurations saved
+
+**Nothing needs to be reinstalled!** Everything just picks up where you left off.
+
+---
+
+## 🚀 Full Setup Guide (First Time or Troubleshooting)
 
 ### 1. Environment Setup
 
