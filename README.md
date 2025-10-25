@@ -7,6 +7,18 @@ mkdir data && cd data
 wget https://cvg-data.inf.ethz.ch/nice-slam/data/Replica.zip
 unzip Replica.zip
 ```
+## Create Python environment and run shell if necessary
+```bash
+uv venv --python 3.10.12
+source .venv/bin/activate
+
+# Optional for CUDA 12.6 Downloaders
+chmod +x ./use-cuda-126.sh
+source ./use-cuda-126.sh
+
+# Install the dependencies from the lock file
+uv sync
+```
 
 We are going to install CUDA toolkit 12.6 (because it's native to Jetpack 6.2 which is used on Jetson Orin chips), but you do not need to worry about personal environments as you can have multiple CUDA drivers and simply change your CUDA path to download Python environment variables with this shell.
 ```bash
@@ -38,18 +50,7 @@ git clone git@github.com:aitechroberts/neuro-nav.git
 git branch -c your-branch-name
 ```
 
-## Create Python environment and run shell if necessary
-```bash
-uv venv --python 3.10.12
-source .venv/bin/activate
 
-# Optional for CUDA 12.6 Downloaders
-chmod +x ./use-cuda-126.sh
-source ./use-cuda-126.sh
-
-# Install the dependencies from the lock file
-uv sync
-```
 
 ## Make the Rerun viewer work on WSL2 (Linux)
 I don't have a pure Linux machine or boot into one if someone wants to add the changes necessary for that here below these commands. If you have further problems after this. Go [here](https://rerun.io/docs/getting-started/troubleshooting?utm_source=chatgpt.com#running-on-linux) to go to Rerun's troubleshooting page.
