@@ -1,0 +1,80 @@
+name: neuro-nav
+prefect-version: "3.0+"
+
+
+pull:
+  - prefect.deployments.steps.git_clone:
+      repository: "https://github.com/your-org/your-repo.git"
+      branch: "main"
+      # Pull only this folder (or a file path if your repo is small)
+      directories: ["data-ui/"]    # e.g., contains flows.py
+  - prefect.deployments.steps.set_working_directory:
+      directory: "data-ui"
+
+build: []
+push: []
+
+deployments:
+  - name: "upload-only"
+    entrypoint: "flows.py:gpu_pipeline"
+    parameters:
+      data_mode: "upload"
+      run_batch: false
+      upload_key: "replica/sample.zip"      # placeholder; Streamlit overrides
+      upload_content_b64: ""                # placeholder; Streamlit overrides
+      content_type: null
+      raw_bucket: null
+      output_name: "results.json"
+      fsx_mount_path: "/fsx"
+      ckpt_mount: "/fsx/checkpoints"
+      batch_job_queue: null
+      batch_job_definition_arn: null
+      ecr_repo: ""
+      ecr_tag: ""
+      override_image: false
+    schedule: null
+    work_pool:
+      name: "managed-push"
+    tags: ["ui", "upload"]
+
+  - name: "run-existing"
+    entrypoint: "flows.py:gpu_pipeline"
+    parameters:
+      data_mode: "existing"
+      existing_key: "replica/office0/office0.zip"   # placeholder; UI overrides
+      run_batch: true
+      output_name: "results.json"
+      fsx_mount_path: "/fsx"
+      ckpt_mount: "/fsx/checkpoints"
+      raw_bucket: null
+      batch_job_queue: null
+      batch_job_definition_arn: null
+      ecr_repo: ""
+      ecr_tag: ""
+      override_image: false
+    schedule: null
+    work_pool:
+      name: "managed-push"
+    tags: ["ui", "run"]
+
+  - name: "upload-and-run"
+    entrypoint: "flows.py:gpu_pipeline"
+    parameters:
+      data_mode: "upload"
+      upload_key: "replica/office0/office0.zip"     # placeholder; UI overrides
+      upload_content_b64: ""                        # placeholder; UI overrides
+      content_type: null
+      run_batch: true
+      output_name: "results.json"
+      fsx_mount_path: "/fsx"
+      ckpt_mount: "/fsx/checkpoints"
+      raw_bucket: null
+      batch_job_queue: null
+      batch_job_definition_arn: null
+      ecr_repo: ""
+      ecr_tag: ""
+      override_image: false
+    schedule: null
+    work_pool:
+      name: "managed-push"
+    tags: ["ui", "pipeline"]

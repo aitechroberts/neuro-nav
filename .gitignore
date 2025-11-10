@@ -10,6 +10,9 @@ manipulation/dataset
 env_vars.bash
 *.bash.template
 
+td.json
+.env
+
 outputs
 wandb
 *.pt

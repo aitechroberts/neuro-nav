@@ -1,0 +1,26 @@
+FROM nvidia/cuda:12.6.0-cudnn9-runtime-ubuntu22.04
+
+# Install Python and AWS CLI
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3-pip \
+    awscli \
+    lustre-client-modules \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip3 install \
+    boto3 \
+    prefect \
+    torch \
+    torchvision
+
+# Add FSx mount helper
+COPY mount-fsx.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/mount-fsx.sh
+
+# Set working directory
+WORKDIR /app
+
+# Default entrypoint
+ENTRYPOINT ["/bin/bash"]

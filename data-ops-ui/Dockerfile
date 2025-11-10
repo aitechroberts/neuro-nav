@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1.7
+FROM ghcr.io/astral-sh/uv:python3.12-trixie-slim
+
+WORKDIR /app
+ENV UV_LINK_MODE=copy \
+    UV_CACHE_DIR=/root/.cache/uv \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 
+
+COPY app.py flows.py pyproject.toml uv.lock ./
+RUN uv sync --locked
+
+ENV STREAMLIT_SERVER_PORT=8501 \
+    STREAMLIT_SERVER_ENABLE_CORS=false \
+    STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false \
+    STREAMLIT_SERVER_HEADLESS=true \
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+    PATH="/app/.venv/bin:$PATH"
+
+EXPOSE 8501
+CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0", "--server.port=8501"]
