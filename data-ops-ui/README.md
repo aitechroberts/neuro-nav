@@ -22,22 +22,26 @@ export IMAGE_TAG=latest
 
 ### Build and push image
 ```bash
-docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" .
+docker build -t "${ECR_REPO}:${IMAGE_TAG}" .
+docker tag "${ECR_REPO}:${IMAGE_TAG}" "${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}"
+docker push "${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}"
+```
 
-
+Then update ECS to force new deployment for newly pushed image
+```bash
+aws ecs update-service \
+  --cluster gpu-batch-data-ui \
+  --service gpu-batch-data-ui \
+  --force-new-deployment
 ```
 
 ### Deploy Prefect Worker
-- 	
-data-finished-585780419748-us-east-1
-- data-raw-585780419748-us-east-1
-- model-checkpoints-585780419748-us-east-1
+
 ```bash
+prefect work-pool create managed-push --type prefect:managed
 prefect variables set RAW_BUCKET=data-raw-585780419748-us-east-1
 prefect variables set FINISHED_BUCKET=data-finished-585780419748-us-east-1
 prefect variables set BATCH_JOB_QUEUE=gpu-batch-gpu-queue
 prefect variables set BATCH_JOB_DEFINITION=gpu-batch-gpu-generic:1
 prefect variables set FSX_PATH=/fsx/checkpoints
-
-prefect work-pool create managed-push --type prefect:managed
 ```

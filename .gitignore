@@ -12,7 +12,7 @@ env_vars.bash
 
 td.json
 .env
-
+.terraform/
 outputs
 wandb
 *.pt
