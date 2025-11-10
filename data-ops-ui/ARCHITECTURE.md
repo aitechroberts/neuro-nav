@@ -53,11 +53,12 @@ This document describes how the Neuro‑Nav data ops stack is wired, how data fl
 ## Data flow (end‑to‑end)
 1. User opens the Data UI (public IP: `http://<public-ip>:8501`). Sidebar shows resolved config (buckets, ECR repo, Prefect deployment).
 2. Choose data:
-   - Upload new data: UI base64‑encodes the file and submits a Prefect run with `data_mode="upload"`. The flow uploads to `s3://<raw_bucket>/<upload_key>`.
+   - Upload new data: UI streams the file directly to the raw S3 bucket using multipart upload, then submits a Prefect run with `data_mode="existing"` pointing at the uploaded key.
    - Select existing data: UI lists keys in the raw bucket and submits with `data_mode="existing"`.
+   - Optional: Upload a model checkpoint to the checkpoints bucket. This upload is independent and is not passed into the Batch job.
 3. Optionally choose a GPU image tag from `gpu-jobs` and toggle whether to override the Batch job’s image.
 4. UI calls `run_deployment(...)` (non‑blocking). Prefect creates a flow run.
-5. Flow uploads (if requested), then submits an AWS Batch job (if `run_batch=true`), passing the input S3 key and output name.
+5. Flow submits an AWS Batch job (if `run_batch=true`), passing the input S3 key and output name.
 6. Outputs are written to the finished bucket; logs/metrics are visible in Prefect and CloudWatch.
 
 

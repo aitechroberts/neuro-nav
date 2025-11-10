@@ -7,7 +7,7 @@ pull:
       repository: "https://github.com/aitechroberts/neuro-nav.git"
       branch: "main"
       # Pull only this folder (or a file path if your repo is small)
-      directories: ["data-oips-ui/flows/"]    # e.g., contains flows.py
+      directories: ["data-ops-ui/flows/"]    # e.g., contains flows.py
   - prefect.deployments.steps.set_working_directory:
       directory: "data-ops-ui/flows/"
 

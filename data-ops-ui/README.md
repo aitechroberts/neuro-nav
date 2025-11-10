@@ -17,13 +17,16 @@ export AWS_ACCOUNT_ID=585780419748
 export ECR_REPO=data-ui
 export ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 export IMAGE_NAME=data-ui
-export IMAGE_TAG=latest   
+export IMAGE_TAG=latest
 ```
 
 ### Build and push image
 ```bash
 docker build -t "${ECR_REPO}:${IMAGE_TAG}" .
 docker tag "${ECR_REPO}:${IMAGE_TAG}" "${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}"
+
+# Log in to ECR
+aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 docker push "${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}"
 ```
 

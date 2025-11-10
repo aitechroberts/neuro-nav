@@ -1,0 +1,62 @@
+{
+    "family": "gpu-batch-data-ui",
+    "executionRoleArn": "arn:aws:iam::585780419748:role/gpu-batch-data-ui-exec-role",
+    "networkMode": "awsvpc",
+    "containerDefinitions": [
+        {
+            "name": "data-ui",
+            "image": "585780419748.dkr.ecr.us-east-1.amazonaws.com/data-ui:latest",
+            "cpu": 0,
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 8501,
+                    "hostPort": 8501,
+                    "protocol": "tcp"
+                }
+            ],
+            "environment": [
+                { "name": "AWS_REGION", "value": "us-east-1" },
+                { "name": "ACCOUNT_ID", "value": "585780419748" },
+                { "name": "CHECKPOINTS_BUCKET", "value": "model-checkpoints-585780419748-us-east-1" },
+                { "name": "STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION", "value": "true" },
+                { "name": "RAW_BUCKET", "value": "data-raw-585780419748-us-east-1" },
+                { "name": "FINISHED_BUCKET", "value": "data-finished-585780419748-us-east-1" },
+                { "name": "ECR_REPOSITORY", "value": "585780419748.dkr.ecr.us-east-1.amazonaws.com/gpu-jobs" },
+                { "name": "STREAMLIT_SERVER_ENABLE_CORS", "value": "false" },
+                { "name": "STREAMLIT_SERVER_MAX_UPLOAD_SIZE", "value": "8192" },
+                { "name": "STREAMLIT_SERVER_MAX_MESSAGE_SIZE", "value": "8192" },
+                { "name": "PREFECT_API_URL", "value": "https://api.prefect.cloud/api/accounts/0ba00981-f3c1-47c4-ae5c-6ceb9b83a9a1/workspaces/4cc2d567-caa8-400e-80bf-95038426a9af" },
+                { "name": "PREFECT_DEPLOYMENT_PATH", "value": "gpu_pipeline/upload-and-run" }
+            ],
+            "secrets": [
+                {
+                    "name": "AWS_ACCESS_KEY_ID",
+                    "valueFrom": "arn:aws:secretsmanager:us-east-1:585780419748:secret:User-Keys-n8ldAJ:AWS_ACCESS_KEY::"
+                },
+                {
+                    "name": "AWS_SECRET_ACCESS_KEY",
+                    "valueFrom": "arn:aws:secretsmanager:us-east-1:585780419748:secret:User-Keys-n8ldAJ:AWS_SECRET_KEY::"
+                },
+                {
+                    "name": "PREFECT_API_KEY",
+                    "valueFrom": "arn:aws:secretsmanager:us-east-1:585780419748:secret:PrefectApiKey-HsCLgu"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/gpu-batch-data-ui",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "data-ui"
+                }
+            }
+        }
+    ],
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "1024",
+    "memory": "6144",
+    "volumes": [],
+    "placementConstraints": []
+}
+

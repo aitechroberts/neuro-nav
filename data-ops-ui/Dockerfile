@@ -7,14 +7,18 @@ ENV UV_LINK_MODE=copy \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 
 
-COPY app.py flows/flows.py pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock ./
 RUN uv sync --locked
+
+COPY app.py flows/flows.py ./
 
 ENV STREAMLIT_SERVER_PORT=8501 \
     STREAMLIT_SERVER_ENABLE_CORS=false \
     STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false \
     STREAMLIT_SERVER_HEADLESS=true \
     STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+    STREAMLIT_SERVER_MAX_UPLOAD_SIZE=8192 \
+    STREAMLIT_SERVER_MAX_MESSAGE_SIZE=8192 \
     PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8501
