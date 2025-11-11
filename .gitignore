@@ -21,6 +21,19 @@ neuro-nav/cuda-keyring_1.1-1_all.deb
 latest_pcd_save
 neuro-nav/latest_pcd_save
 
+
+# terraform files
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+tfplan
+terraform.tfvars.example
+gpu-batch-infra/.terraform.lock.hcl
+gpu-batch-infra/terraform.tfstate
+gpu-batch-infra/terraform.tfstate.backup
+gpu-batch-infra/tfplan
+gpu-batch-infra/terraform.tfvars.example
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

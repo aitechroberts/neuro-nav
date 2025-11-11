@@ -10,6 +10,10 @@ team_accounts = {
   "nick"  = "509399632158",
 }
 
+iam_user_names = ["jabarkle","nchermak"]
+
+iam_group_name = "TalkingRobots"
+
 external_id = "gpu-batch-fall-2025-secret"
 
 gpu_instance_types = ["g5.4xlarge", "g5.8xlarge"]
