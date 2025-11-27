@@ -8,7 +8,7 @@ pull:
       repository: "https://github.com/aitechroberts/neuro-nav.git"
       branch: "main"
   - prefect.deployments.steps.set_working_directory:
-      directory: "{{ clone-step.directory }}/neuro-nav/data-ops-ui/"
+      directory: "{{ clone-step.directory }}/data-ops-ui/"
 
 build: []
 push: []
