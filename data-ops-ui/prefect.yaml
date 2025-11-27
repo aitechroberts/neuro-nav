@@ -6,8 +6,9 @@ pull:
   - prefect.deployments.steps.git_clone:
       repository: "https://github.com/aitechroberts/neuro-nav.git"
       branch: "main"
+      # After clone, creates neuro-nav/ directory, and repo has neuro-nav/ subdirectory inside
   - prefect.deployments.steps.set_working_directory:
-      directory: "neuro-nav/data-ops-ui/"
+      directory: "neuro-nav/neuro-nav/data-ops-ui/"
 
 build: []
 push: []
