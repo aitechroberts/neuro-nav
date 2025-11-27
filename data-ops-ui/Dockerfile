@@ -10,7 +10,9 @@ ENV UV_LINK_MODE=copy \
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked
 
+# Application code and configuration (including custom themes)
 COPY app.py flows/flows.py ./
+COPY .streamlit ./.streamlit
 
 ENV STREAMLIT_SERVER_PORT=8501 \
     STREAMLIT_SERVER_ENABLE_CORS=false \

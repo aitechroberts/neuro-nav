@@ -8,4 +8,5 @@ dependencies = [
     "boto3>=1.40.69",
     "prefect>=3.5.0",
     "streamlit>=1.51.0",
+    "streamlit-shadcn-ui>=0.1.19",
 ]

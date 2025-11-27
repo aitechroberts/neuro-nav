@@ -37,7 +37,7 @@ This document describes how the Neuro‑Nav data ops stack is wired, how data fl
 - Work pool: push‑based (managed), no persistent agent required. The Streamlit app uses `run_deployment(...)` to submit runs.
 - Configuration:
   - Flow resolves bucket/queue/job_def via parameters first, then Prefect Variables (lowercase), then env defaults.
-  - Recommended Variables (Prefect Cloud): `raw_bucket`, `finished_bucket`, `batch_job_queue`, `batch_job_definition`, `fsx_path`, `checkpoints_bucket`.
+  - Recommended Variables (Prefect Cloud): `raw_bucket`, `finished_bucket`, `batch_job_queue`, `batch_job_definition`, `fsx_path`, `checkpoints_bucket`, `evaluations_bucket`.
 
 ### 3) AWS Batch (GPU)
 - Terraform resources provision compute environment, queue, and job definition.
@@ -47,6 +47,7 @@ This document describes how the Neuro‑Nav data ops stack is wired, how data fl
 - Raw bucket: `data-raw-<account>-<region>`
 - Finished bucket: `data-finished-<account>-<region>`
 - Checkpoints bucket: `model-checkpoints-<account>-<region>`
+- Evaluations bucket (backed by the datasets bucket): `datasets-<account>-<region>`
 - Recommended: upload one archive (`.tar.gz` or `.zip`) per scene, with a small manifest (see README for bundle schema).
 
 
@@ -56,10 +57,12 @@ This document describes how the Neuro‑Nav data ops stack is wired, how data fl
    - Upload new data: UI streams the file directly to the raw S3 bucket using multipart upload, then submits a Prefect run with `data_mode="existing"` pointing at the uploaded key.
    - Select existing data: UI lists keys in the raw bucket and submits with `data_mode="existing"`.
    - Optional: Upload a model checkpoint to the checkpoints bucket. This upload is independent and is not passed into the Batch job.
+   - Optional: Upload an evaluation artifact to the evaluations bucket (datasets). This upload is independent and is not passed into the Batch job.
 3. Optionally choose a GPU image tag from `gpu-jobs` and toggle whether to override the Batch job’s image.
 4. UI calls `run_deployment(...)` (non‑blocking). Prefect creates a flow run.
 5. Flow submits an AWS Batch job (if `run_batch=true`), passing the input S3 key and output name.
 6. Outputs are written to the finished bucket; logs/metrics are visible in Prefect and CloudWatch.
+7. After the Batch job succeeds (and if `evaluations_bucket` is configured), the flow copies the output artifact from the finished bucket into the evaluations bucket for downstream analysis.
 
 
 ## Terraform (infra) – files to know
@@ -218,5 +221,44 @@ aws ecs update-service --cluster gpu-batch-data-ui --service gpu-batch-data-ui -
 - Prefer unique image tags or digests for repeatable runs; don’t rely solely on `:latest`.
 - For large scenes, avoid browser uploads; upload with `aws s3 cp` and use “Select existing data” in the UI.
 - Keep secrets in Secrets Manager; don’t pass keys via Prefect Variables or Terraform variables/state.
+
+---
+
+## Local GPU smoke test container
+
+Before pushing to AWS Batch, you can exercise the full VLM mapping flow with Docker using the
+`gpu-batch-infra/Dockerfile.gpu-test-local` image. It launches
+`conceptgraph.slam.batch_test_local`, binds three host directories, and defaults to a
+10-frame run so you can validate mounts, OpenAI credentials, and artifact writing quickly.
+
+Recommended mounts (all configurable via env vars):
+
+| Host path                                      | Container path       | Purpose                              |
+| ---------------------------------------------- | -------------------- | ------------------------------------ |
+| `/home/.../data`                               | `/mnt/local-data`    | Replica scenes / raw inputs (ro)     |
+| `/home/.../checkpoints`                        | `/mnt/checkpoints`   | Checkpoints directory                |
+| `/home/.../local-outputs`                      | `/mnt/local-output`  | Outputs from `scene/exps/<suffix>`   |
+
+Example run:
+
+```bash
+HOST_DATA_ROOT=/home/jroberts/cmu-grad/neuro-nav/data
+HOST_CKPT_ROOT=/home/jroberts/cmu-grad/neuro-nav/checkpoints
+HOST_OUTPUT_ROOT=/home/jroberts/cmu-grad/neuro-nav/local-outputs
+
+docker run --rm --gpus all \
+  -v "${HOST_DATA_ROOT}":/mnt/local-data:ro \
+  -v "${HOST_CKPT_ROOT}":/mnt/checkpoints \
+  -v "${HOST_OUTPUT_ROOT}":/mnt/local-output \
+  -e SCENE_ID=office0 \
+  -e START=0 \
+  -e END=10 \
+  -e MAKE_EDGES=false \
+  vlm-batch-gpu:test-local
+```
+
+Outputs appear on the host under `${HOST_OUTPUT_ROOT}/office0/exps/batch_vlm/…`, matching what the
+cloud Batch job will do once FSx is attached. Enable `MAKE_EDGES` and `OPENAI_API_KEY` whenever you
+need to exercise the full VLM edge/caption path.
 
 

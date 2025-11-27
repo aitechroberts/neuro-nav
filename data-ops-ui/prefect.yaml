@@ -6,17 +6,17 @@ pull:
   - prefect.deployments.steps.git_clone:
       repository: "https://github.com/aitechroberts/neuro-nav.git"
       branch: "main"
-      # Pull only this folder (or a file path if your repo is small)
-      directories: ["data-ops-ui/flows/"]    # e.g., contains flows.py
+      # Pull only this folder (repo has neuro-nav/ subdirectory)
+      directories: ["neuro-nav/data-ops-ui/flows/"]
   - prefect.deployments.steps.set_working_directory:
-      directory: "data-ops-ui/flows/"
+      directory: "neuro-nav/data-ops-ui/flows/"
 
 build: []
 push: []
 
 deployments:
   - name: "upload-only"
-    entrypoint: "flows/flows.py:gpu_pipeline"
+    entrypoint: "flows.py:gpu_pipeline"
     parameters:
       data_mode: "upload"
       run_batch: false
@@ -24,7 +24,7 @@ deployments:
       upload_content_b64: ""                # placeholder; Streamlit overrides
       content_type: null
       raw_bucket: null
-      output_name: "results.json"
+      output_folder: "default"
       fsx_mount_path: "/fsx"
       ckpt_mount: "/fsx/checkpoints"
       batch_job_queue: null
@@ -38,12 +38,12 @@ deployments:
     tags: ["ui", "upload"]
 
   - name: "run-existing"
-    entrypoint: "flows/flows.py:gpu_pipeline"
+    entrypoint: "flows.py:gpu_pipeline"
     parameters:
       data_mode: "existing"
       existing_key: "replica/office0/office0.zip"   # placeholder; UI overrides
       run_batch: true
-      output_name: "results.json"
+      output_folder: "default"
       fsx_mount_path: "/fsx"
       ckpt_mount: "/fsx/checkpoints"
       raw_bucket: null
@@ -58,14 +58,14 @@ deployments:
     tags: ["ui", "run"]
 
   - name: "upload-and-run"
-    entrypoint: "flows/flows.py:gpu_pipeline"
+    entrypoint: "flows.py:gpu_pipeline"
     parameters:
       data_mode: "upload"
       upload_key: "replica/office0/office0.zip"     # placeholder; UI overrides
       upload_content_b64: ""                        # placeholder; UI overrides
       content_type: null
       run_batch: true
-      output_name: "results.json"
+      output_folder: "default"
       fsx_mount_path: "/fsx"
       ckpt_mount: "/fsx/checkpoints"
       raw_bucket: null
@@ -78,3 +78,20 @@ deployments:
     work_pool:
       name: "managed-push"
     tags: ["ui", "pipeline"]
+
+  - name: "evaluate-existing"
+    entrypoint: "flows.py:evaluate_results"
+    parameters:
+      input_folder: "default"                # placeholder; UI/CLI overrides
+      finished_bucket: null
+      evaluations_bucket: null
+      batch_job_queue: null
+      evaluation_job_definition_arn: null
+      ecr_repo: ""
+      ecr_tag: ""
+      override_image: false
+      output_folder: "evaluation"
+    schedule: null
+    work_pool:
+      name: "managed-push"
+    tags: ["ui", "evaluation"]

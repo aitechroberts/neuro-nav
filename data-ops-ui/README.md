@@ -42,9 +42,10 @@ aws ecs update-service \
 
 ```bash
 prefect work-pool create managed-push --type prefect:managed
-prefect variables set RAW_BUCKET=data-raw-585780419748-us-east-1
-prefect variables set FINISHED_BUCKET=data-finished-585780419748-us-east-1
-prefect variables set BATCH_JOB_QUEUE=gpu-batch-gpu-queue
-prefect variables set BATCH_JOB_DEFINITION=gpu-batch-gpu-generic:1
-prefect variables set FSX_PATH=/fsx/checkpoints
+prefect variable set raw_bucket data-raw-585780419748-us-east-1
+prefect variable set finished_bucket data-finished-585780419748-us-east-1
+prefect variable set batch_job_queue gpu-batch-gpu-queue
+prefect variable set batch_job_definition gpu-batch-gpu-generic:1
+prefect variable set fsx_path /fsx/checkpoints
+prefect variable set evaluations_bucket datasets-585780419748-us-east-1
 ```

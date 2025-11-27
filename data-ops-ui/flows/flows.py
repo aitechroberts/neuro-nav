@@ -3,7 +3,7 @@
 # - Push-based: back deployments with a push work pool (no polling workers).
 # - Config via Prefect Variables (lowercase/underscores), with env fallbacks:
 #     raw_bucket, finished_bucket, batch_job_queue, batch_job_definition,
-#     fsx_path (optional), checkpoints_bucket (optional)
+#     fsx_path (optional), checkpoints_bucket (optional), evaluations_bucket (optional)
 #
 # UI should call create_flow_run_from_deployment(...) with parameters to run.
 
@@ -44,6 +44,10 @@ CHECKPOINTS_BUCKET = Variable.get(
     "checkpoints_bucket",
     default=os.getenv("CHECKPOINTS_BUCKET", ""),
 )
+EVALUATIONS_BUCKET = Variable.get(
+    "evaluations_bucket",
+    default=os.getenv("EVALUATIONS_BUCKET", os.getenv("DATASETS_BUCKET", "")),
+)
 
 boto_cfg = Config(region_name=AWS_REGION, retries={"max_attempts": 10, "mode": "adaptive"})
 s3 = boto3.client("s3", config=boto_cfg)
@@ -73,23 +77,43 @@ def _submit_batch_job(
     job_def_arn: str,
     image: Optional[str],
     input_key: str,
-    output_name: str,
+    output_folder: str,
     ckpt_dir: str,
 ) -> str:
     """
     Submit an AWS Batch job. Optionally override the container image.
-    Passes RAW_BUCKET/INPUT_KEY/OUTPUT_BUCKET/OUTPUT_NAME/CKPT_DIR via env.
+    Passes S3_INPUT_URI, S3_OUTPUT_URI, SCENE_ID, etc. via env.
+    
+    Args:
+        output_folder: Folder path (prefix) in the finished bucket where all 
+                       outputs (point cloud, semantic snapshot, etc.) will be synced.
     """
+    # Construct URIs expected by entrypoint_batch_vlm.sh
+    s3_input_uri = f"s3://{RAW_BUCKET}/{input_key}"
+    
+    # Ensure output_folder doesn't have leading/trailing slashes, then add trailing slash
+    output_folder_clean = output_folder.strip("/") if output_folder else "default"
+    
+    # entrypoint does: aws s3 sync OUTPUT_ROOT S3_OUTPUT_URI
+    # So S3_OUTPUT_URI should be a folder (prefix) with trailing slash
+    s3_output_uri = f"s3://{FINISHED_BUCKET}/{output_folder_clean}/"
+    
+    # Extract SCENE_ID from input_key (e.g., 'replica/room0.zip' -> 'room0')
+    scene_id = os.path.splitext(os.path.basename(input_key))[0]
+
     container_overrides = {
         "name": "main",
         "environment": [
+            {"name": "S3_INPUT_URI", "value": s3_input_uri},
+            {"name": "S3_OUTPUT_URI", "value": s3_output_uri},
+            {"name": "SCENE_ID", "value": scene_id},
+            # Legacy/Optional (for debugging/other scripts)
             {"name": "RAW_BUCKET", "value": RAW_BUCKET},
             {"name": "INPUT_KEY", "value": input_key},
             {"name": "OUTPUT_BUCKET", "value": FINISHED_BUCKET},
-            {"name": "OUTPUT_NAME", "value": output_name},
+            {"name": "OUTPUT_FOLDER", "value": output_folder_clean},
             {"name": "CKPT_DIR", "value": ckpt_dir},
         ],
-        # You can remove this if your job definition already sets GPU requirements.
         "resourceRequirements": [{"type": "GPU", "value": "1"}],
     }
 
@@ -115,7 +139,7 @@ def submit_batch_if_requested(
     ecr_repo: str,
     ecr_tag: str,
     input_key: str,
-    output_name: str,
+    output_folder: str,
     ckpt_dir: str,
     override_image: bool = False,
 ) -> Optional[str]:
@@ -125,13 +149,13 @@ def submit_batch_if_requested(
         return None
 
     image = f"{ecr_repo}:{ecr_tag}" if override_image and ecr_repo and ecr_tag else None
-    job_id = _submit_batch_job(job_queue, job_def_arn, image, input_key, output_name, ckpt_dir)
+    job_id = _submit_batch_job(job_queue, job_def_arn, image, input_key, output_folder, ckpt_dir)
     logger.info(f"Submitted Batch job: {job_id}")
     return job_id
 
 
 # -------------------------
-# Flow
+# Flows
 # -------------------------
 
 @flow
@@ -152,21 +176,32 @@ def gpu_pipeline(
     ecr_repo: str = "",
     ecr_tag: str = "",
     override_image: bool = False,
-    # Output and mounts (your container reads these from env)
-    output_name: str = "results.json",
+    # Output folder (all outputs synced here) and mounts
+    output_folder: str = "default",
     fsx_mount_path: str = "/fsx",     # informational; not used directly here
     ckpt_mount: str = "/fsx/checkpoints",
     # Control whether to actually submit batch
     run_batch: bool = True,
+    # Optional: also trigger an evaluation flow after Batch submission
+    run_evaluation_after: bool = False,
+    evaluations_bucket: Optional[str] = None,
+    # Legacy parameter name (mapped to output_folder for backward compat)
+    output_name: Optional[str] = None,
 ):
     """
     Unified pipeline:
       - 'upload' mode: uploads base64 data to s3://<raw_bucket>/<upload_key>, then (optionally) submits AWS Batch job.
       - 'existing' mode: skips upload and submits AWS Batch job against s3://<raw_bucket>/<existing_key>.
+    
+    All outputs (point cloud, semantic snapshot, etc.) are synced to:
+      s3://<finished_bucket>/<output_folder>/
     """
 
     logger = get_run_logger()
     logger.info("Starting gpu-pipeline")
+
+    # Handle legacy output_name parameter
+    resolved_output_folder = output_name if output_name else output_folder
 
     # Resolve config from parameters -> Prefect Variables -> env defaults
     target_bucket = raw_bucket or RAW_BUCKET
@@ -216,10 +251,29 @@ def gpu_pipeline(
         ecr_repo,
         ecr_tag,
         input_key,
-        output_name,
+        resolved_output_folder,
         ckpt_mount,
         override_image=override_image,
     )
+
+    # Clean output folder for URI construction
+    output_folder_clean = resolved_output_folder.strip("/") if resolved_output_folder else "default"
+
+    # Optionally kick off an evaluation flow after submitting the Batch job.
+    evaluation_result: Optional[dict] = None
+    if run_batch and run_evaluation_after and job_id:
+        eval_output_folder = f"evaluation-{output_folder_clean}"
+        evaluation_result = evaluate_results(
+            input_folder=output_folder_clean,
+            finished_bucket=FINISHED_BUCKET,
+            evaluations_bucket=evaluations_bucket,
+            batch_job_queue=resolved_queue,
+            evaluation_job_definition_arn=resolved_job_def,
+            ecr_repo=ecr_repo,
+            ecr_tag=ecr_tag,
+            override_image=override_image,
+            output_folder=eval_output_folder,
+        )
 
     result = {
         "mode": data_mode,
@@ -231,7 +285,105 @@ def gpu_pipeline(
         "batch_job_id": job_id,
         "fsx_mount_path": fsx_mount_path,
         "ckpt_mount": ckpt_mount,
-        "output_uri": f"s3://{FINISHED_BUCKET}/{output_name}",
+        "output_uri": f"s3://{FINISHED_BUCKET}/{output_folder_clean}/",
+        "evaluations_bucket": evaluation_result.get("evaluations_bucket") if evaluation_result else None,
+        "evaluation_job_id": evaluation_result.get("evaluation_job_id") if evaluation_result else None,
+        "evaluation_output_uri": evaluation_result.get("evaluation_output_uri") if evaluation_result else None,
+    }
+    logger.info(result)
+    return result
+
+
+@flow
+def evaluate_results(
+    input_folder: str,
+    finished_bucket: Optional[str] = None,
+    evaluations_bucket: Optional[str] = None,
+    batch_job_queue: Optional[str] = None,
+    evaluation_job_definition_arn: Optional[str] = None,
+    ecr_repo: str = "",
+    ecr_tag: str = "",
+    override_image: bool = False,
+    output_folder: str = "evaluation",
+    # Legacy parameter (mapped to input_folder)
+    input_key: Optional[str] = None,
+    output_name: Optional[str] = None,
+):
+    """
+    Evaluation-only flow:
+      - Reads from s3://<finished_bucket>/<input_folder>/
+      - Submits an evaluation AWS Batch job (using gpu-jobs image)
+      - Evaluation job writes to s3://<evaluations_bucket>/<output_folder>/
+    """
+    logger = get_run_logger()
+    logger.info("Starting evaluate-results flow")
+
+    # Handle legacy parameters
+    resolved_input_folder = input_key if input_key else input_folder
+    resolved_output_folder = output_name if output_name else output_folder
+
+    resolved_finished_bucket = finished_bucket or FINISHED_BUCKET
+    if not resolved_finished_bucket:
+        raise ValueError(
+            "No finished_bucket provided and Prefect Variable 'finished_bucket' is not set."
+        )
+
+    resolved_evaluations_bucket = evaluations_bucket or EVALUATIONS_BUCKET
+    if not resolved_evaluations_bucket:
+        raise ValueError(
+            "No evaluations_bucket provided and Prefect Variable 'evaluations_bucket' is not set."
+        )
+
+    resolved_queue = batch_job_queue or BATCH_JOB_QUEUE
+    if not resolved_queue:
+        raise ValueError(
+            "No batch_job_queue provided and Prefect Variable 'batch_job_queue' is not set."
+        )
+
+    resolved_job_def = evaluation_job_definition_arn or BATCH_JOB_DEF
+    if not resolved_job_def:
+        raise ValueError(
+            "No evaluation_job_definition_arn provided and Prefect Variable "
+            "'batch_job_definition' is not set."
+        )
+
+    # Clean folder paths
+    input_folder_clean = resolved_input_folder.strip("/") if resolved_input_folder else "default"
+    output_folder_clean = resolved_output_folder.strip("/") if resolved_output_folder else "evaluation"
+
+    # Submit an evaluation job. The evaluation container code is responsible for:
+    # - Reading from EVAL_INPUT_BUCKET/EVAL_INPUT_FOLDER
+    # - Writing to EVAL_OUTPUT_BUCKET/EVAL_OUTPUT_FOLDER
+    image = f"{ecr_repo}:{ecr_tag}" if override_image and ecr_repo and ecr_tag else None
+    container_overrides = {
+        "name": "main",
+        "environment": [
+            {"name": "EVAL_INPUT_BUCKET", "value": resolved_finished_bucket},
+            {"name": "EVAL_INPUT_FOLDER", "value": input_folder_clean},
+            {"name": "EVAL_OUTPUT_BUCKET", "value": resolved_evaluations_bucket},
+            {"name": "EVAL_OUTPUT_FOLDER", "value": output_folder_clean},
+        ],
+        "resourceRequirements": [{"type": "GPU", "value": "1"}],
+    }
+    if image:
+        container_overrides["image"] = image
+
+    resp = batch.submit_job(
+        jobName=f"evaluate-results-{os.getpid()}",
+        jobQueue=resolved_queue,
+        jobDefinition=resolved_job_def,
+        containerOverrides=container_overrides,
+        propagateTags=True,
+    )
+    evaluation_job_id = resp["jobId"]
+    logger.info(f"Submitted evaluation Batch job: {evaluation_job_id}")
+
+    evaluation_output_uri = f"s3://{resolved_evaluations_bucket}/{output_folder_clean}/"
+    result = {
+        "input_finished_uri": f"s3://{resolved_finished_bucket}/{input_folder_clean}/",
+        "evaluations_bucket": resolved_evaluations_bucket,
+        "evaluation_job_id": evaluation_job_id,
+        "evaluation_output_uri": evaluation_output_uri,
     }
     logger.info(result)
     return result

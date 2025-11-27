@@ -1,0 +1,14 @@
+[light]
+primaryColor = "#C41230"
+backgroundColor = "#E0E0E0"
+secondaryBackgroundColor = "#F2F2F2"
+textColor = "#000000"
+font = "sans serif"
+
+[dark]
+primaryColor = "#C084FC"
+backgroundColor = "#000000"
+secondaryBackgroundColor = "#050505"
+textColor = "#FFFFFF"
+font = "sans serif"
+
