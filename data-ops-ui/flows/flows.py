@@ -8,6 +8,7 @@
 # UI should call create_flow_run_from_deployment(...) with parameters to run.
 
 import os
+import time
 from typing import Optional
 from base64 import b64decode
 
@@ -55,6 +56,68 @@ batch = boto3.client("batch", config=boto_cfg)
 
 
 # -------------------------
+# Dynamic Job Definition
+# -------------------------
+
+def _register_job_definition_with_image(base_job_def: str, new_image: str) -> str:
+    """
+    Registers a new job definition revision based on an existing one but with a different image.
+    
+    Args:
+        base_job_def: ARN or name of the base job definition to clone settings from
+        new_image: The new container image URI (e.g., 'account.dkr.ecr.region.amazonaws.com/repo:tag')
+    
+    Returns:
+        The ARN of the newly registered job definition
+    """
+    # Describe the base job definition to get its settings
+    # If it's an ARN, extract just the name for describe
+    if base_job_def.startswith("arn:"):
+        # ARN format: arn:aws:batch:region:account:job-definition/name:revision
+        job_def_name = base_job_def.split("/")[-1].split(":")[0]
+    else:
+        job_def_name = base_job_def.split(":")[0]  # Remove revision if present
+    
+    describe_resp = batch.describe_job_definitions(
+        jobDefinitionName=job_def_name,
+        status="ACTIVE",
+    )
+    
+    if not describe_resp.get("jobDefinitions"):
+        raise ValueError(f"No active job definition found with name: {job_def_name}")
+    
+    # Get the latest revision
+    base_def = sorted(
+        describe_resp["jobDefinitions"],
+        key=lambda d: d.get("revision", 0),
+        reverse=True
+    )[0]
+    
+    # Build the new job definition with the new image
+    container_props = base_def.get("containerProperties", {}).copy()
+    container_props["image"] = new_image
+    
+    # Generate a unique name for this dynamic job definition
+    timestamp = int(time.time())
+    dynamic_name = f"{job_def_name}-dynamic-{timestamp}"
+    
+    # Register the new job definition
+    register_resp = batch.register_job_definition(
+        jobDefinitionName=dynamic_name,
+        type=base_def.get("type", "container"),
+        platformCapabilities=base_def.get("platformCapabilities", ["EC2"]),
+        containerProperties=container_props,
+        retryStrategy=base_def.get("retryStrategy", {"attempts": 1}),
+        timeout=base_def.get("timeout", {"attemptDurationSeconds": 86400}),
+        tags=base_def.get("tags", {}),
+    )
+    
+    new_arn = register_resp["jobDefinitionArn"]
+    print(f"[info] Registered dynamic job definition: {new_arn} with image: {new_image}")
+    return new_arn
+
+
+# -------------------------
 # Tasks
 # -------------------------
 
@@ -81,13 +144,21 @@ def _submit_batch_job(
     ckpt_dir: str,
 ) -> str:
     """
-    Submit an AWS Batch job. Optionally override the container image.
-    Passes S3_INPUT_URI, S3_OUTPUT_URI, SCENE_ID, etc. via env.
+    Submit an AWS Batch job. If image is provided, creates a dynamic job definition
+    with that image before submitting.
     
     Args:
+        job_def_arn: Base job definition ARN (used as template if image override requested)
+        image: Optional image URI to use instead of the job definition's default
         output_folder: Folder path (prefix) in the finished bucket where all 
                        outputs (point cloud, semantic snapshot, etc.) will be synced.
     """
+    # If image override requested, register a dynamic job definition
+    effective_job_def = job_def_arn
+    if image:
+        print(f"[info] Image override requested: {image}")
+        effective_job_def = _register_job_definition_with_image(job_def_arn, image)
+    
     # Construct URIs expected by entrypoint_batch_vlm.sh
     s3_input_uri = f"s3://{RAW_BUCKET}/{input_key}"
     
@@ -101,8 +172,7 @@ def _submit_batch_job(
     # Extract SCENE_ID from input_key (e.g., 'replica/room0.zip' -> 'room0')
     scene_id = os.path.splitext(os.path.basename(input_key))[0]
 
-    # EC2-based Batch jobs only support: vcpus, memory, command, instanceType, environment, resourceRequirements
-    # Note: image override is NOT supported for EC2 jobs - must update job definition instead
+    # EC2-based Batch jobs support: vcpus, memory, command, instanceType, environment, resourceRequirements
     container_overrides = {
         "environment": [
             {"name": "S3_INPUT_URI", "value": s3_input_uri},
@@ -116,15 +186,11 @@ def _submit_batch_job(
         ],
         "resourceRequirements": [{"type": "GPU", "value": "1"}],
     }
-    
-    # Log if image override was requested but not supported
-    if image:
-        print(f"[warn] Image override requested ({image}) but EC2 Batch doesn't support this. Using job definition image.")
 
     resp = batch.submit_job(
         jobName=f"gpu-pipeline-{os.getpid()}",
         jobQueue=job_queue,
-        jobDefinition=job_def_arn,
+        jobDefinition=effective_job_def,
         containerOverrides=container_overrides,
         propagateTags=True,
     )
@@ -195,6 +261,10 @@ def gpu_pipeline(
     
     All outputs (point cloud, semantic snapshot, etc.) are synced to:
       s3://<finished_bucket>/<output_folder>/
+    
+    Dynamic Image Support:
+      If override_image=True and ecr_repo/ecr_tag are provided, a new job definition
+      will be registered with that image before submitting the job.
     """
 
     logger = get_run_logger()
@@ -314,6 +384,10 @@ def evaluate_results(
       - Reads from s3://<finished_bucket>/<input_folder>/
       - Submits an evaluation AWS Batch job (using gpu-jobs image)
       - Evaluation job writes to s3://<evaluations_bucket>/<output_folder>/
+    
+    Dynamic Image Support:
+      If override_image=True and ecr_repo/ecr_tag are provided, a new job definition
+      will be registered with that image before submitting the job.
     """
     logger = get_run_logger()
     logger.info("Starting evaluate-results flow")
@@ -351,11 +425,16 @@ def evaluate_results(
     input_folder_clean = resolved_input_folder.strip("/") if resolved_input_folder else "default"
     output_folder_clean = resolved_output_folder.strip("/") if resolved_output_folder else "evaluation"
 
+    # If image override requested, register a dynamic job definition
+    image = f"{ecr_repo}:{ecr_tag}" if override_image and ecr_repo and ecr_tag else None
+    effective_job_def = resolved_job_def
+    if image:
+        logger.info(f"Image override requested: {image}")
+        effective_job_def = _register_job_definition_with_image(resolved_job_def, image)
+
     # Submit an evaluation job. The evaluation container code is responsible for:
     # - Reading from EVAL_INPUT_BUCKET/EVAL_INPUT_FOLDER
     # - Writing to EVAL_OUTPUT_BUCKET/EVAL_OUTPUT_FOLDER
-    # EC2-based Batch jobs only support: vcpus, memory, command, instanceType, environment, resourceRequirements
-    image = f"{ecr_repo}:{ecr_tag}" if override_image and ecr_repo and ecr_tag else None
     container_overrides = {
         "environment": [
             {"name": "EVAL_INPUT_BUCKET", "value": resolved_finished_bucket},
@@ -365,13 +444,11 @@ def evaluate_results(
         ],
         "resourceRequirements": [{"type": "GPU", "value": "1"}],
     }
-    if image:
-        logger.warning(f"Image override requested ({image}) but EC2 Batch doesn't support this. Using job definition image.")
 
     resp = batch.submit_job(
         jobName=f"evaluate-results-{os.getpid()}",
         jobQueue=resolved_queue,
-        jobDefinition=resolved_job_def,
+        jobDefinition=effective_job_def,
         containerOverrides=container_overrides,
         propagateTags=True,
     )

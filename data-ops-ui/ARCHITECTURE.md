@@ -40,8 +40,44 @@ This document describes how the Neuro‑Nav data ops stack is wired, how data fl
   - Recommended Variables (Prefect Cloud): `raw_bucket`, `finished_bucket`, `batch_job_queue`, `batch_job_definition`, `fsx_path`, `checkpoints_bucket`, `evaluations_bucket`.
 
 ### 3) AWS Batch (GPU)
-- Terraform resources provision compute environment, queue, and job definition.
-- Flow submits a job with container overrides for input/output, checkpoint dir, and (optionally) overrides image from `gpu-jobs` with the selected tag.
+- Terraform resources provision compute environment, queue, and a **base job definition**.
+- The base job definition serves as a template; when dynamic image override is requested, a new job definition revision is registered at runtime.
+- Flow submits a job with container overrides for input/output, checkpoint dir, and environment variables.
+
+#### Dynamic Image Override (Option 2 Architecture)
+EC2-based AWS Batch does not support runtime image override in `containerOverrides`. To enable dynamic image selection:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  User selects image tag in UI (e.g., "vlm-batch-v2")        │
+│  + checks "Override Job Definition image"                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Prefect flow receives: ecr_repo + ecr_tag + override=True  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  _register_job_definition_with_image()                      │
+│  1. Describes base job definition (copies all settings)     │
+│  2. Creates NEW job definition with the requested image     │
+│  3. Returns new job definition ARN                          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  batch.submit_job() uses the NEW job definition             │
+│  → Your custom image runs on GPU!                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Benefits:**
+- No Terraform changes needed for new images
+- Push new image to ECR → use it immediately in UI
+- Job definitions are free (no cost overhead)
+- Full flexibility for research/experimentation
 
 ### 4) S3 buckets (data layout)
 - Raw bucket: `data-raw-<account>-<region>`
