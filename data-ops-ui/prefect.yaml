@@ -9,6 +9,8 @@ pull:
       branch: "main"
   - prefect.deployments.steps.set_working_directory:
       directory: "{{ clone-step.directory }}/data-ops-ui/"
+  - prefect.deployments.steps.pip_install_requirements:
+      requirements_file: "flows/requirements.txt"
 
 build: []
 push: []
