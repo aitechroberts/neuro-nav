@@ -238,8 +238,27 @@ aws ecs update-service --cluster gpu-batch-data-ui --service gpu-batch-data-ui -
 3. Update `PREFECT_DEPLOYMENT_PATH` in the UI env if the name/path changes.
 
 ### Change Batch image or resources
-- Build/push a new tag to `gpu-jobs`, then select it in the UI when submitting.
-- To pin the Batch job definition permanently, update Terraform’s job definition or pass `override_image=true` with `ecr_repo` and `ecr_tag`.
+- **Dynamic images:** Check "Override Job Definition image" in the UI to use a custom image. The flow will:
+  1. Read the base job definition's settings (IAM role, memory, GPU requirements, etc.)
+  2. Register a new job definition with your image (named `<base>-dynamic-<timestamp>`)
+  3. Submit the job using the newly created definition
+- **Public ECR images:** You can use public images directly. For example:
+  - ECR Repo: `public.ecr.aws/r5i3x3r0/gpu-jobs`
+  - Tag: `test`
+  - The flow constructs `public.ecr.aws/r5i3x3r0/gpu-jobs:test`
+- **Private ECR images:** Push to your private `gpu-jobs` repo, then select the tag in the UI.
+- **Cost:** Job definitions are free; there's no charge for registering new ones.
+- **Cleanup:** Dynamic job definitions accumulate over time. Periodically deregister old ones:
+  ```bash
+  # List dynamic job definitions
+  aws batch describe-job-definitions --status ACTIVE \
+    --query "jobDefinitions[?contains(jobDefinitionName, 'dynamic')].[jobDefinitionArn]" \
+    --output text
+  
+  # Deregister one
+  aws batch deregister-job-definition --job-definition <arn>
+  ```
+- To pin a specific image permanently, update Terraform's `aws_batch_job_definition` resource.
 
 
 ## Troubleshooting

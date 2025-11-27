@@ -3,7 +3,8 @@
 # - Push-based: back deployments with a push work pool (no polling workers).
 # - Config via Prefect Variables (lowercase/underscores), with env fallbacks:
 #     raw_bucket, finished_bucket, batch_job_queue, batch_job_definition,
-#     fsx_path (optional), checkpoints_bucket (optional), evaluations_bucket (optional)
+#     checkpoints_bucket (optional), evaluations_bucket (optional)
+# - AWS credentials loaded from Prefect Block "neuro-nav-aws-creds"
 #
 # UI should call create_flow_run_from_deployment(...) with parameters to run.
 
@@ -16,6 +17,18 @@ import boto3
 from botocore.config import Config
 from prefect import flow, task, get_run_logger
 from prefect.variables import Variable
+
+# AWS credentials from Prefect Block (for managed runner)
+# Falls back to environment/IAM if block not found (for local dev)
+try:
+    from prefect_aws import AwsCredentials
+    _aws_creds_block = AwsCredentials.load("neuro-nav-aws-creds")
+    _boto_session = _aws_creds_block.get_boto3_session()
+    print("[flows] Loaded AWS credentials from Prefect Block 'neuro-nav-aws-creds'")
+except Exception as e:
+    # Fallback to default credentials (env vars, IAM role, etc.)
+    _boto_session = boto3.Session()
+    print(f"[flows] Using default AWS credentials (Block not found: {e})")
 
 
 # -------------------------
@@ -40,7 +53,6 @@ BATCH_JOB_DEF = Variable.get(
 )
 
 # Optional variables you might read in your job or expose as env to batch:
-FSX_PATH = Variable.get("fsx_path", default=os.getenv("FSX_PATH", "/fsx/checkpoints"))
 CHECKPOINTS_BUCKET = Variable.get(
     "checkpoints_bucket",
     default=os.getenv("CHECKPOINTS_BUCKET", ""),
@@ -50,9 +62,10 @@ EVALUATIONS_BUCKET = Variable.get(
     default=os.getenv("EVALUATIONS_BUCKET", os.getenv("DATASETS_BUCKET", "")),
 )
 
+# Build boto3 clients from session (uses Block credentials if loaded)
 boto_cfg = Config(region_name=AWS_REGION, retries={"max_attempts": 10, "mode": "adaptive"})
-s3 = boto3.client("s3", config=boto_cfg)
-batch = boto3.client("batch", config=boto_cfg)
+s3 = _boto_session.client("s3", config=boto_cfg, region_name=AWS_REGION)
+batch = _boto_session.client("batch", config=boto_cfg, region_name=AWS_REGION)
 
 
 # -------------------------
@@ -242,10 +255,9 @@ def gpu_pipeline(
     ecr_repo: str = "",
     ecr_tag: str = "",
     override_image: bool = False,
-    # Output folder (all outputs synced here) and mounts
+    # Output folder (all outputs synced here) and checkpoint mount
     output_folder: str = "default",
-    fsx_mount_path: str = "/fsx",     # informational; not used directly here
-    ckpt_mount: str = "/fsx/checkpoints",
+    ckpt_mount: str = "/mnt/checkpoints",  # checkpoint directory inside container
     # Control whether to actually submit batch
     run_batch: bool = True,
     # Optional: also trigger an evaluation flow after Batch submission
@@ -353,7 +365,6 @@ def gpu_pipeline(
         "batch_job_queue": resolved_queue,
         "batch_job_definition": resolved_job_def,
         "batch_job_id": job_id,
-        "fsx_mount_path": fsx_mount_path,
         "ckpt_mount": ckpt_mount,
         "output_uri": f"s3://{FINISHED_BUCKET}/{output_folder_clean}/",
         "evaluations_bucket": evaluation_result.get("evaluations_bucket") if evaluation_result else None,
