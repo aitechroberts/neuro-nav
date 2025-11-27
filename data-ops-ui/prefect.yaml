@@ -6,17 +6,15 @@ pull:
   - prefect.deployments.steps.git_clone:
       repository: "https://github.com/aitechroberts/neuro-nav.git"
       branch: "main"
-      # Pull only this folder (repo has neuro-nav/ subdirectory)
-      directories: ["neuro-nav/data-ops-ui/flows/"]
   - prefect.deployments.steps.set_working_directory:
-      directory: "neuro-nav/data-ops-ui/flows/"
+      directory: "neuro-nav/data-ops-ui/"
 
 build: []
 push: []
 
 deployments:
   - name: "upload-only"
-    entrypoint: "flows.py:gpu_pipeline"
+    entrypoint: "flows/flows.py:gpu_pipeline"
     parameters:
       data_mode: "upload"
       run_batch: false
@@ -38,7 +36,7 @@ deployments:
     tags: ["ui", "upload"]
 
   - name: "run-existing"
-    entrypoint: "flows.py:gpu_pipeline"
+    entrypoint: "flows/flows.py:gpu_pipeline"
     parameters:
       data_mode: "existing"
       existing_key: "replica/office0/office0.zip"   # placeholder; UI overrides
@@ -58,7 +56,7 @@ deployments:
     tags: ["ui", "run"]
 
   - name: "upload-and-run"
-    entrypoint: "flows.py:gpu_pipeline"
+    entrypoint: "flows/flows.py:gpu_pipeline"
     parameters:
       data_mode: "upload"
       upload_key: "replica/office0/office0.zip"     # placeholder; UI overrides
@@ -80,7 +78,7 @@ deployments:
     tags: ["ui", "pipeline"]
 
   - name: "evaluate-existing"
-    entrypoint: "flows.py:evaluate_results"
+    entrypoint: "flows/flows.py:evaluate_results"
     parameters:
       input_folder: "default"                # placeholder; UI/CLI overrides
       finished_bucket: null
