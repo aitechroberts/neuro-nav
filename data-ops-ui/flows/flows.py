@@ -101,13 +101,13 @@ def _submit_batch_job(
     # Extract SCENE_ID from input_key (e.g., 'replica/room0.zip' -> 'room0')
     scene_id = os.path.splitext(os.path.basename(input_key))[0]
 
+    # EC2-based Batch jobs only support: vcpus, memory, command, instanceType, environment, resourceRequirements
+    # Note: image override is NOT supported for EC2 jobs - must update job definition instead
     container_overrides = {
-        "name": "main",
         "environment": [
             {"name": "S3_INPUT_URI", "value": s3_input_uri},
             {"name": "S3_OUTPUT_URI", "value": s3_output_uri},
             {"name": "SCENE_ID", "value": scene_id},
-            # Legacy/Optional (for debugging/other scripts)
             {"name": "RAW_BUCKET", "value": RAW_BUCKET},
             {"name": "INPUT_KEY", "value": input_key},
             {"name": "OUTPUT_BUCKET", "value": FINISHED_BUCKET},
@@ -116,10 +116,10 @@ def _submit_batch_job(
         ],
         "resourceRequirements": [{"type": "GPU", "value": "1"}],
     }
-
-    # Only override the image if explicitly requested
+    
+    # Log if image override was requested but not supported
     if image:
-        container_overrides["image"] = image
+        print(f"[warn] Image override requested ({image}) but EC2 Batch doesn't support this. Using job definition image.")
 
     resp = batch.submit_job(
         jobName=f"gpu-pipeline-{os.getpid()}",
@@ -354,9 +354,9 @@ def evaluate_results(
     # Submit an evaluation job. The evaluation container code is responsible for:
     # - Reading from EVAL_INPUT_BUCKET/EVAL_INPUT_FOLDER
     # - Writing to EVAL_OUTPUT_BUCKET/EVAL_OUTPUT_FOLDER
+    # EC2-based Batch jobs only support: vcpus, memory, command, instanceType, environment, resourceRequirements
     image = f"{ecr_repo}:{ecr_tag}" if override_image and ecr_repo and ecr_tag else None
     container_overrides = {
-        "name": "main",
         "environment": [
             {"name": "EVAL_INPUT_BUCKET", "value": resolved_finished_bucket},
             {"name": "EVAL_INPUT_FOLDER", "value": input_folder_clean},
@@ -366,7 +366,7 @@ def evaluate_results(
         "resourceRequirements": [{"type": "GPU", "value": "1"}],
     }
     if image:
-        container_overrides["image"] = image
+        logger.warning(f"Image override requested ({image}) but EC2 Batch doesn't support this. Using job definition image.")
 
     resp = batch.submit_job(
         jobName=f"evaluate-results-{os.getpid()}",
