@@ -26,8 +26,6 @@ deployments:
       content_type: null
       raw_bucket: null
       output_folder: "default"
-      fsx_mount_path: "/fsx"
-      ckpt_mount: "/fsx/checkpoints"
       batch_job_queue: null
       batch_job_definition_arn: null
       ecr_repo: ""
@@ -45,8 +43,6 @@ deployments:
       existing_key: "replica/office0/office0.zip"   # placeholder; UI overrides
       run_batch: true
       output_folder: "default"
-      fsx_mount_path: "/fsx"
-      ckpt_mount: "/fsx/checkpoints"
       raw_bucket: null
       batch_job_queue: null
       batch_job_definition_arn: null
@@ -67,8 +63,6 @@ deployments:
       content_type: null
       run_batch: true
       output_folder: "default"
-      fsx_mount_path: "/fsx"
-      ckpt_mount: "/fsx/checkpoints"
       raw_bucket: null
       batch_job_queue: null
       batch_job_definition_arn: null

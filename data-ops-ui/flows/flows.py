@@ -154,7 +154,6 @@ def _submit_batch_job(
     image: Optional[str],
     input_key: str,
     output_folder: str,
-    ckpt_dir: str,
 ) -> str:
     """
     Submit an AWS Batch job. If image is provided, creates a dynamic job definition
@@ -195,7 +194,6 @@ def _submit_batch_job(
             {"name": "INPUT_KEY", "value": input_key},
             {"name": "OUTPUT_BUCKET", "value": FINISHED_BUCKET},
             {"name": "OUTPUT_FOLDER", "value": output_folder_clean},
-            {"name": "CKPT_DIR", "value": ckpt_dir},
         ],
         "resourceRequirements": [{"type": "GPU", "value": "1"}],
     }
@@ -219,7 +217,6 @@ def submit_batch_if_requested(
     ecr_tag: str,
     input_key: str,
     output_folder: str,
-    ckpt_dir: str,
     override_image: bool = False,
 ) -> Optional[str]:
     logger = get_run_logger()
@@ -228,7 +225,7 @@ def submit_batch_if_requested(
         return None
 
     image = f"{ecr_repo}:{ecr_tag}" if override_image and ecr_repo and ecr_tag else None
-    job_id = _submit_batch_job(job_queue, job_def_arn, image, input_key, output_folder, ckpt_dir)
+    job_id = _submit_batch_job(job_queue, job_def_arn, image, input_key, output_folder)
     logger.info(f"Submitted Batch job: {job_id}")
     return job_id
 
@@ -255,9 +252,8 @@ def gpu_pipeline(
     ecr_repo: str = "",
     ecr_tag: str = "",
     override_image: bool = False,
-    # Output folder (all outputs synced here) and checkpoint mount
+    # Output folder (all outputs synced here)
     output_folder: str = "default",
-    ckpt_mount: str = "/mnt/checkpoints",  # checkpoint directory inside container
     # Control whether to actually submit batch
     run_batch: bool = True,
     # Optional: also trigger an evaluation flow after Batch submission
@@ -334,7 +330,6 @@ def gpu_pipeline(
         ecr_tag,
         input_key,
         resolved_output_folder,
-        ckpt_mount,
         override_image=override_image,
     )
 
@@ -365,7 +360,6 @@ def gpu_pipeline(
         "batch_job_queue": resolved_queue,
         "batch_job_definition": resolved_job_def,
         "batch_job_id": job_id,
-        "ckpt_mount": ckpt_mount,
         "output_uri": f"s3://{FINISHED_BUCKET}/{output_folder_clean}/",
         "evaluations_bucket": evaluation_result.get("evaluations_bucket") if evaluation_result else None,
         "evaluation_job_id": evaluation_result.get("evaluation_job_id") if evaluation_result else None,

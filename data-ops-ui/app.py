@@ -402,8 +402,6 @@ ECR_PUBLIC_REGION = "us-east-1"
 BATCH_JOB_QUEUE = os.getenv("BATCH_JOB_QUEUE", "gpu-batch-gpu-queue")
 BATCH_JOB_DEFINITION_ARN = os.getenv("BATCH_JOB_DEFINITION_ARN", "")  # if you want to override
 
-FSX_MOUNT_PATH = os.getenv("FSX_MOUNT_PATH", "/fsx")
-CKPT_MOUNT = os.getenv("CKPT_MOUNT", "/fsx/checkpoints")
 
 # IMPORTANT: These must match your Prefect v3 deployment "flow_name/deployment_name" paths
 # Flow names use hyphens in Prefect (gpu-pipeline, evaluate-results)
@@ -1062,8 +1060,6 @@ if ui.button("Submit", key="submit_btn"):
         "batch_job_queue": BATCH_JOB_QUEUE or None,                # let flow fallback to Variable if blank
         "batch_job_definition_arn": BATCH_JOB_DEFINITION_ARN or None,
         "output_folder": output_folder.strip("/") if output_folder else "default",
-        "fsx_mount_path": FSX_MOUNT_PATH,
-        "ckpt_mount": CKPT_MOUNT,
     }
 
     # Dynamically select deployment based on user choices
