@@ -1,5 +1,17 @@
 ## Mapping Workflow (based on `conceptgraph/slam/batch_test_local.py`)
 
+### Replica Scenes:
+hotel0
+room0
+office3
+apartment1
+
+### ScanNet Scenes:
+0046_00
+0222_00
+0389_00
+0435_00
+
 ### System-Level Signal Flow
 
 The mapping pipeline combines two complementary semantic sources:
