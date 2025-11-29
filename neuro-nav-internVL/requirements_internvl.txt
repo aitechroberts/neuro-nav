@@ -1,0 +1,33 @@
+# Requirements for InternVL2-2B Pipeline
+# Install with: pip install -r requirements_internvl.txt
+
+# Core VLM dependencies
+transformers>=4.37.2  # InternVL2 requires transformers 4.37.2+
+torch>=2.0.0
+torchvision>=0.15.0
+pillow>=9.0.0
+
+# InternVL2-specific
+timm>=0.9.0  # For vision transformer components
+
+# HuggingFace
+accelerate>=0.20.0
+sentencepiece>=0.1.99
+protobuf>=3.20.0
+
+# Scene graph dependencies (inherited from neuro-nav)
+numpy>=1.21.0
+scipy>=1.7.0
+opencv-python>=4.5.0
+matplotlib>=3.5.0
+tqdm>=4.62.0
+rich>=10.0.0
+tyro>=0.5.0
+
+# 3D processing (from neuro-nav)
+open3d>=0.13.0
+
+# Optional (for faster inference)
+# flash-attn>=2.0.0  # Requires compilation, uncomment if needed
+# To install: pip install flash-attn --no-build-isolation
+
