@@ -130,8 +130,28 @@ def orr_log_vlm_image(vlm_image_path, label=""):
         )
     else:
         logging.warning(f"VLM image not found at path: {vlm_image_path}")
+
+def get_object_label(obj, use_semantic_labels=True):
+    """
+    Helper function for Direction 1 experiment: Semantic vs Geometric understanding.
+    
+    Args:
+        obj: Object dictionary containing 'curr_obj_num' and 'class_name'
+        use_semantic_labels: If True, use semantic class names (e.g., "chair")
+                            If False, use only geometric IDs (e.g., "object_1")
+    
+    Returns:
+        String label for the object
+    """
+    obj_num = obj['curr_obj_num']
+    if use_semantic_labels:
+        # Semantic mode: Include class name
+        return f"{obj_num}_{obj['class_name']}"
+    else:
+        # Geometric mode: Generic label only
+        return f"object_{obj_num}"
         
-def orr_log_objs_pcd_and_bbox(objects, obj_classes):
+def orr_log_objs_pcd_and_bbox(objects, obj_classes, use_semantic_labels=True):
     global prev_logged_entities
     global counter
     
@@ -145,7 +165,11 @@ def orr_log_objs_pcd_and_bbox(objects, obj_classes):
         if obj['is_background']:
             continue
         
-        obj_label = f"{obj['curr_obj_num']}_{obj['class_name']}"
+        # Direction 1 experiment: Use helper to get semantic or geometric label
+        # ORIGINAL LINE (commented out for Direction 1):
+        # obj_label = f"{obj['curr_obj_num']}_{obj['class_name']}"
+        # NEW LINE (uses helper function):
+        obj_label = get_object_label(obj, use_semantic_labels)
         obj_label = obj_label.replace(" ", "_")
         base_entity_path = "world/objects"
         entity_path = f"world/objects/{obj_label}"
@@ -215,10 +239,14 @@ def orr_log_objs_pcd_and_bbox(objects, obj_classes):
 
         # Assuming bbox is extracted as before
         bbox = obj['bbox']
-        centers = [bbox.center]
-        half_sizes = [bbox.extent /2 ]
+        centers = [bbox.get_center()]
+        half_sizes = [bbox.get_extent() / 2]
         # Convert rotation matrix to quaternion
-        bbox_quaternion = [rotation_matrix_to_quaternion(bbox.R)]
+        # Handle both AxisAlignedBoundingBox (no rotation) and OrientedBoundingBox (has rotation)
+        if hasattr(bbox, 'R'):
+            bbox_quaternion = [rotation_matrix_to_quaternion(bbox.R)]
+        else:
+            bbox_quaternion = [[1, 0, 0, 0]]  # Identity quaternion for AABB
 
         bbox_entity = base_entity_path + "/bbox" + f"/{obj_label}"
         orr.log(

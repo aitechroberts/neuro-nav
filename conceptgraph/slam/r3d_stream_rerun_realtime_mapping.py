@@ -505,7 +505,12 @@ def main(cfg : DictConfig):
                 do_edges=False, # false for now, otherwise use cfg["make_edges"],
                 map_edges=map_edges
             )   
-        orr_log_objs_pcd_and_bbox(objects, obj_classes)
+        # Direction 1 experiment: Pass semantic label flag from config
+        # ORIGINAL LINE (commented out for Direction 1):
+        # orr_log_objs_pcd_and_bbox(objects, obj_classes)
+        # NEW LINES (pass semantic label flag from config):
+        use_semantic_labels = cfg.get('use_semantic_labels', True)  # Default to True for backwards compatibility
+        orr_log_objs_pcd_and_bbox(objects, obj_classes, use_semantic_labels)
         # orr_log_edges(objects, map_edges, obj_classes) # not using edges for now 
 
         if cfg.save_objects_all_frames:
