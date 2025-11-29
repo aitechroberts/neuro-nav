@@ -42,7 +42,7 @@ variable "notification_email" {
 variable "gpu_instance_types" {
   description = "GPU instance types for Batch"
   type        = list(string)
-  default     = ["g5.4xlarge", "g5.8xlarge"]
+  default     = ["g5.xlarge", "g5.2xlarge", "g5.4xlarge", "g4dn.xlarge", "g4dn.2xlarge"]
 }
 
 variable "max_vcpus" {
@@ -72,4 +72,10 @@ variable "fsx_throughput" {
     condition     = contains([125, 250, 500, 1000], var.fsx_throughput)
     error_message = "Throughput must be 125, 250, 500, or 1000 MB/s/TiB"
   }
+}
+
+variable "fsx_datasets_storage_capacity" {
+  description = "FSx Lustre SCRATCH storage capacity in GB (1200, 2400, or increments of 2400)"
+  type        = number
+  default     = 1200
 }

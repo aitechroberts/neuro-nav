@@ -21,6 +21,7 @@ terraform {
 }
 
 provider "aws" {
+  profile = "acct2"
   region = var.aws_region
 
   default_tags {
@@ -31,3 +32,4 @@ provider "aws" {
     }
   }
 }
+

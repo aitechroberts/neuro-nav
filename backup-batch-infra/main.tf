@@ -62,6 +62,15 @@ resource "aws_s3_bucket" "checkpoints" {
   })
 }
 
+resource "aws_s3_bucket" "datasets" {
+  bucket = "datasets-${local.bucket_suffix}"
+
+  tags = merge(local.common_tags, {
+    Name = "Datasets Bucket"
+    Type = "Datasets"
+  })
+}
+
 # Bucket ownership controls
 resource "aws_s3_bucket_ownership_controls" "raw_data" {
   bucket = aws_s3_bucket.raw_data.id
@@ -87,8 +96,24 @@ resource "aws_s3_bucket_ownership_controls" "checkpoints" {
   }
 }
 
+resource "aws_s3_bucket_ownership_controls" "datasets" {
+  bucket = aws_s3_bucket.datasets.id
+
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}
+
 resource "aws_s3_bucket_versioning" "checkpoints" {
   bucket = aws_s3_bucket.checkpoints.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_versioning" "datasets" {
+  bucket = aws_s3_bucket.datasets.id
 
   versioning_configuration {
     status = "Enabled"
@@ -130,101 +155,127 @@ resource "aws_ecr_repository" "base_image" {
   })
 }
 
-resource "aws_ecr_repository_policy" "gpu_jobs_cross_account" {
-  repository = aws_ecr_repository.gpu_jobs.name
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Sid : "AllowTeamPushPull",
-      Effect : "Allow",
-      Principal = {
-        AWS = [for alias, account_id in var.team_accounts : "arn:aws:iam::${account_id}:root"]
-      },
-      Action = [
-        "ecr:BatchCheckLayerAvailability",
-        "ecr:BatchGetImage",
-        "ecr:CompleteLayerUpload",
-        "ecr:GetDownloadUrlForLayer",
-        "ecr:InitiateLayerUpload",
-        "ecr:PutImage",
-        "ecr:UploadLayerPart"
-      ],
-      #   Resource = "*"
-    }]
-  })
-}
+# resource "aws_ecr_repository_policy" "gpu_jobs_cross_account" {
+#   repository = aws_ecr_repository.gpu_jobs.name
+#   policy = jsonencode({
+#     Version = "2012-10-17",
+#     Statement = [{
+#       Sid : "AllowTeamPushPull",
+#       Effect : "Allow",
+#       Principal = {
+#         AWS = [for alias, account_id in var.team_accounts : "arn:aws:iam::${account_id}:root"]
+#       },
+#       Action = [
+#         "ecr:BatchCheckLayerAvailability",
+#         "ecr:BatchGetImage",
+#         "ecr:CompleteLayerUpload",
+#         "ecr:GetDownloadUrlForLayer",
+#         "ecr:InitiateLayerUpload",
+#         "ecr:PutImage",
+#         "ecr:UploadLayerPart"
+#       ],
+#       #   Resource = "*"
+#     }]
+#   })
+# }
 
 # ==========================================
-# FSx Lustre for Checkpoints
+# FSx Lustre for Checkpoints & Datasets
 # ==========================================
+# COMMENTED OUT - FSx deleted to save costs. Uncomment when ready to use.
 
-resource "aws_security_group" "fsx_lustre" {
-  name_prefix = "${var.project_name}-fsx-"
-  vpc_id      = local.vpc_id
-  description = "Security group for FSx Lustre"
+# resource "aws_security_group" "fsx_lustre" {
+#   name_prefix = "${var.project_name}-fsx-"
+#   vpc_id      = local.vpc_id
+#   description = "Security group for FSx Lustre"
+#
+#   # FSx server <-> clients (Batch instances) on Lustre ports
+#   # Allow traffic from Batch compute instances
+#   ingress {
+#     from_port       = 988
+#     to_port         = 988
+#     protocol        = "tcp"
+#     security_groups = [aws_security_group.batch_compute.id]
+#   }
+#
+#   ingress {
+#     from_port       = 1018
+#     to_port         = 1023
+#     protocol        = "tcp"
+#     security_groups = [aws_security_group.batch_compute.id]
+#   }
+#
+#   # Allow Lustre traffic within the VPC CIDR (recommended by AWS)
+#   ingress {
+#     from_port   = 988
+#     to_port     = 988
+#     protocol    = "tcp"
+#     cidr_blocks = [data.aws_vpc.selected.cidr_block]
+#   }
+#
+#   ingress {
+#     from_port   = 1018
+#     to_port     = 1023
+#     protocol    = "tcp"
+#     cidr_blocks = [data.aws_vpc.selected.cidr_block]
+#   }
+#
+#   # Self-referencing (FSx servers ↔ FSx servers)
+#   ingress {
+#     from_port                = 988
+#     to_port                  = 988
+#     protocol                 = "tcp"
+#     self                     = true
+#   }
+#
+#   ingress {
+#     from_port                = 1018
+#     to_port                  = 1023
+#     protocol                 = "tcp"
+#     self                     = true
+#   }
+#
+#   egress {
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = "-1"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+#
+#   tags = merge(local.common_tags, {
+#     Name = "${var.project_name}-fsx-sg"
+#   })
+# }
 
-  # FSx server <-> clients (Batch instances) on Lustre ports
-  ingress {
-    from_port       = 988
-    to_port         = 988
-    protocol        = "tcp"
-    security_groups = [aws_security_group.batch_compute.id]
-  }
+# data "aws_vpc" "selected" {
+#   id = local.vpc_id
+# }
 
-  ingress {
-    from_port       = 1018
-    to_port         = 1023
-    protocol        = "tcp"
-    security_groups = [aws_security_group.batch_compute.id]
-  }
+# resource "aws_fsx_lustre_file_system" "checkpoints" {
+#   storage_capacity            = var.fsx_storage_capacity
+#   subnet_ids                  = [local.subnet_ids[0]]
+#   deployment_type             = "PERSISTENT_2"
+#   per_unit_storage_throughput = var.fsx_throughput # 125|250|500|1000
+#
+#   security_group_ids = [aws_security_group.fsx_lustre.id]
+#   # Optional DRAs instead of inline import/export for more control (future)
+#   # See AWS docs if you later add aws_fsx_data_repository_association
+#
+#   tags = merge(local.common_tags, { Name = "${var.project_name}-fsx-checkpoints" })
+# }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = merge(local.common_tags, {
-    Name = "${var.project_name}-fsx-sg"
-  })
-}
-
-# Self-referencing rules (FSx servers ↔ FSx servers)
-resource "aws_security_group_rule" "fsx_self_988" {
-  type                     = "ingress"
-  from_port                = 988
-  to_port                  = 988
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.fsx_lustre.id
-  source_security_group_id = aws_security_group.fsx_lustre.id
-}
-
-resource "aws_security_group_rule" "fsx_self_1018_1023" {
-  type                     = "ingress"
-  from_port                = 1018
-  to_port                  = 1023
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.fsx_lustre.id
-  source_security_group_id = aws_security_group.fsx_lustre.id
-}
-
-data "aws_vpc" "selected" {
-  id = local.vpc_id
-}
-
-resource "aws_fsx_lustre_file_system" "checkpoints" {
-  storage_capacity            = var.fsx_storage_capacity
-  subnet_ids                  = [local.subnet_ids[0]]
-  deployment_type             = "PERSISTENT_2"
-  per_unit_storage_throughput = var.fsx_throughput # 125|250|500|1000
-
-  security_group_ids = [aws_security_group.fsx_lustre.id]
-  # Optional DRAs instead of inline import/export for more control (future)
-  # See AWS docs if you later add aws_fsx_data_repository_association
-
-  tags = merge(local.common_tags, { Name = "${var.project_name}-fsx-checkpoints" })
-}
+# FSx Lustre PERSISTENT_2 for datasets
+# resource "aws_fsx_lustre_file_system" "datasets" {
+#   storage_capacity            = var.fsx_datasets_storage_capacity
+#   subnet_ids                  = [local.subnet_ids[0]]
+#   deployment_type             = "PERSISTENT_2"
+#   per_unit_storage_throughput = 250 # 250 MB/s/TiB
+#
+#   security_group_ids = [aws_security_group.fsx_lustre.id]
+#   # Standalone FSx file system - datasets S3 bucket is separate, no DRA
+#
+#   tags = merge(local.common_tags, { Name = "${var.project_name}-fsx-datasets" })
+# }
 
 # ==========================================
 # IAM Roles for Batch
@@ -335,7 +386,9 @@ resource "aws_iam_role_policy" "batch_job_s3" {
           aws_s3_bucket.raw_data.arn,
           "${aws_s3_bucket.raw_data.arn}/*",
           aws_s3_bucket.checkpoints.arn,
-          "${aws_s3_bucket.checkpoints.arn}/*"
+          "${aws_s3_bucket.checkpoints.arn}/*",
+          aws_s3_bucket.datasets.arn,
+          "${aws_s3_bucket.datasets.arn}/*"
         ]
       },
       {
@@ -345,110 +398,67 @@ resource "aws_iam_role_policy" "batch_job_s3" {
         ]
         Resource = [
           "${aws_s3_bucket.finished_data.arn}/*",
-          "${aws_s3_bucket.checkpoints.arn}/*"
+          "${aws_s3_bucket.checkpoints.arn}/*",
+          "${aws_s3_bucket.datasets.arn}/*"
         ]
       }
     ]
   })
 }
 
-resource "aws_iam_role_policy" "batch_job_fsx" {
-  name = "fsx-access"
+# Secrets Manager access for GPU Batch jobs (OpenAI, WandB, etc.)
+resource "aws_iam_role_policy" "batch_job_secrets" {
+  name = "secrets-access"
   role = aws_iam_role.batch_job.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = [
-        "fsx:DescribeFileSystems",
-        "fsx:DescribeDataRepositoryTasks"
-      ]
-      Resource = aws_fsx_lustre_file_system.checkpoints.arn
-    }]
-  })
-}
-
-# ==========================================
-# Cross-Account Access Role
-# ==========================================
-
-resource "aws_iam_role" "data_ops_contributor" {
-  name = "DataOpsContributor"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        AWS = [for alias, account_id in var.team_accounts :
-        "arn:aws:iam::${account_id}:root"]
-      }
-      Action = "sts:AssumeRole"
-      Condition = {
-        StringEquals = {
-          "sts:ExternalId" = var.external_id
-        }
-      }
-    }]
-  })
-
-  tags = merge(local.common_tags, {
-    Name = "Cross-Account Team Access"
-  })
-}
-
-resource "aws_iam_role_policy" "data_ops_contributor" {
-  name = "contributor-permissions"
-  role = aws_iam_role.data_ops_contributor.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ECRAuth"
-        Effect = "Allow"
-        Action : ["ecr:GetAuthorizationToken"],
-        Resource : "*"
-      },
-      # Repo-scoped push/pull
-      {
-        Sid : "ECRPushPull",
-        Effect : "Allow",
-        Action : [
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:BatchGetImage",
-          "ecr:CompleteLayerUpload",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:InitiateLayerUpload",
-          "ecr:PutImage",
-          "ecr:UploadLayerPart",
-          "ecr:DescribeRepositories",
-          "ecr:ListImages"
-        ],
-        Resource : [
-          aws_ecr_repository.gpu_jobs.arn,
-          aws_ecr_repository.base_image.arn
-        ]
-      },
-      {
-        Sid    = "S3Access"
         Effect = "Allow"
         Action = [
-          "s3:PutObject",
-          "s3:GetObject",
-          "s3:ListBucket"
+          "secretsmanager:GetSecretValue"
         ]
         Resource = [
-          "${aws_s3_bucket.raw_data.arn}/*",
-          "${aws_s3_bucket.checkpoints.arn}/*",
-          aws_s3_bucket.raw_data.arn,
-          aws_s3_bucket.checkpoints.arn
+          "arn:aws:secretsmanager:${var.aws_region}:${local.account_id}:secret:OpenAI*",
+          "arn:aws:secretsmanager:${var.aws_region}:${local.account_id}:secret:openai*",
+          "arn:aws:secretsmanager:${var.aws_region}:${local.account_id}:secret:WandB*",
+          "arn:aws:secretsmanager:${var.aws_region}:${local.account_id}:secret:wandb*",
+          "arn:aws:secretsmanager:${var.aws_region}:${local.account_id}:secret:WANDB*"
         ]
       }
     ]
   })
 }
+
+# COMMENTED OUT - FSx deleted to save costs. Uncomment when ready to use.
+# resource "aws_iam_role_policy" "batch_job_fsx" {
+#   name = "fsx-access"
+#   role = aws_iam_role.batch_job.id
+#
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [{
+#       Effect = "Allow"
+#       Action = [
+#         "fsx:DescribeFileSystems",
+#         "fsx:DescribeDataRepositoryTasks"
+#       ]
+#       Resource = [
+#         aws_fsx_lustre_file_system.checkpoints.arn,
+#         aws_fsx_lustre_file_system.datasets.arn
+#       ]
+#     }]
+#   })
+# }
+
+# ==========================================
+# Cross-Account Access Role (REMOVED: Using direct IAM users in this account)
+# ==========================================
+
+# resource "aws_iam_role" "data_ops_contributor" { ... }
+# resource "aws_iam_role_policy" "data_ops_contributor" { ... }
+
 
 # ==========================================
 # Batch Compute Environment
@@ -484,11 +494,13 @@ resource "aws_launch_template" "batch_gpu" {
     }
   }
 
-  # User data to mount FSx Lustre
-  user_data = base64encode(templatefile("${path.module}/modules/user_data.sh", {
-    fsx_dns_name   = aws_fsx_lustre_file_system.checkpoints.dns_name
-    fsx_mount_name = aws_fsx_lustre_file_system.checkpoints.mount_name
-  }))
+  # COMMENTED OUT - FSx user_data disabled; no FSx mounts until FSx is re-enabled.
+  # user_data = base64encode(templatefile("${path.module}/modules/user_data.sh", {
+  #   fsx_dns_name            = aws_fsx_lustre_file_system.checkpoints.dns_name
+  #   fsx_mount_name          = aws_fsx_lustre_file_system.checkpoints.mount_name
+  #   fsx_datasets_dns_name   = aws_fsx_lustre_file_system.datasets.dns_name
+  #   fsx_datasets_mount_name = aws_fsx_lustre_file_system.datasets.mount_name
+  # }))
 
   tags = local.common_tags
 }
@@ -599,32 +611,47 @@ resource "aws_batch_job_definition" "gpu_generic" {
       },
       {
         type  = "MEMORY"
-        value = "30000"
+        value = "20000"
       }
     ]
 
-    environment = [
-      {
-        name  = "FSX_MOUNT"
-        value = "/fsx"
-      }
-    ]
+    # COMMENTED OUT - FSx mounts disabled until FSx is re-enabled.
+    # environment = [
+    #   {
+    #     name  = "FSX_MOUNT"
+    #     value = "/fsx"
+    #   },
+    #   {
+    #     name  = "FSX_DATASETS_MOUNT"
+    #     value = "/fsx-datasets"
+    #   }
+    # ]
 
-    mountPoints = [
-      {
-        containerPath = "/fsx"
-        sourceVolume  = "fsx-lustre"
-      }
-    ]
+    # mountPoints = [
+    #   {
+    #     containerPath = "/fsx"
+    #     sourceVolume  = "fsx-lustre"
+    #   },
+    #   {
+    #     containerPath = "/fsx-datasets"
+    #     sourceVolume  = "fsx-datasets"
+    #   }
+    # ]
 
-    volumes = [
-      {
-        name = "fsx-lustre"
-        host = {
-          sourcePath = "/fsx"
-        }
-      }
-    ]
+    # volumes = [
+    #   {
+    #     name = "fsx-lustre"
+    #     host = {
+    #       sourcePath = "/fsx"
+    #     }
+    #   },
+    #   {
+    #     name = "fsx-datasets"
+    #     host = {
+    #       sourcePath = "/fsx-datasets"
+    #     }
+    #   }
+    # ]
 
     logConfiguration = {
       logDriver = "awslogs"
@@ -726,8 +753,10 @@ resource "aws_sns_topic_policy" "batch_failures" {
 }
 
 # ==========================================
-# ECS Fargate: data-ui (Streamlit)
+# App Runner: data-ui (Streamlit) - Scale to Zero
 # ==========================================
+# Replaces ECS Fargate for true scale-to-zero like Azure Container Apps.
+# App Runner pauses when idle (~$0.01/hour) and wakes on request (~30-60s cold start).
 
 resource "aws_ecr_repository" "data_ui" {
   name                 = "data-ui"
@@ -746,6 +775,10 @@ resource "aws_ecr_repository" "data_ui" {
   })
 }
 
+# ==========================================
+# ECS Fargate: data-ui (Streamlit)
+# ==========================================
+
 resource "aws_ecs_cluster" "data_ui" {
   name = "${var.project_name}-data-ui"
   tags = local.common_tags
@@ -757,7 +790,6 @@ resource "aws_cloudwatch_log_group" "data_ui" {
   tags              = local.common_tags
 }
 
-# Public SG to expose 8501 (Streamlit). For ALB usage, tighten to ALB SG instead.
 resource "aws_security_group" "data_ui" {
   name_prefix = "${var.project_name}-data-ui-"
   vpc_id      = local.vpc_id
@@ -767,7 +799,7 @@ resource "aws_security_group" "data_ui" {
     from_port   = 8501
     to_port     = 8501
     protocol    = "tcp"
-    cidr_blocks = [var.data_ui_ingress_cidr]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -782,22 +814,24 @@ resource "aws_security_group" "data_ui" {
   })
 }
 
-# Look up an existing Secrets Manager secret by name (do NOT store secret in TF)
-data "aws_secretsmanager_secret" "data_ui_creds" {
-  name = var.data_ui_secret_name
+# Secrets Manager lookups
+data "aws_secretsmanager_secret" "prefect_api_key" {
+  name = "PrefectApiKey"
 }
 
-# Execution role for ECS task (pull image, logs, and read the secret JSON keys)
+# Execution role for ECS task (pull image, logs, read secrets)
 resource "aws_iam_role" "data_ui_execution" {
   name = "${var.project_name}-data-ui-exec-role"
+
   assume_role_policy = jsonencode({
-    Version = "2012-10-17",
+    Version = "2012-10-17"
     Statement = [{
-      Effect    = "Allow",
-      Principal = { Service = "ecs-tasks.amazonaws.com" },
+      Effect    = "Allow"
+      Principal = { Service = "ecs-tasks.amazonaws.com" }
       Action    = "sts:AssumeRole"
     }]
   })
+
   tags = local.common_tags
 }
 
@@ -808,17 +842,16 @@ resource "aws_iam_role_policy_attachment" "data_ui_exec_base" {
 
 resource "aws_iam_policy" "data_ui_exec_secrets" {
   name = "${var.project_name}-data-ui-exec-secrets"
+
   policy = jsonencode({
-    Version = "2012-10-17",
+    Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow",
+      Effect = "Allow"
       Action = [
-        "secretsmanager:GetSecretValue",
-        "kms:Decrypt"
-      ],
+        "secretsmanager:GetSecretValue"
+      ]
       Resource = [
-        data.aws_secretsmanager_secret.data_ui_creds.arn,
-        "arn:aws:kms:${var.aws_region}:${local.account_id}:key/*"
+        data.aws_secretsmanager_secret.prefect_api_key.arn
       ]
     }]
   })
@@ -829,54 +862,147 @@ resource "aws_iam_role_policy_attachment" "data_ui_exec_secrets_attach" {
   policy_arn = aws_iam_policy.data_ui_exec_secrets.arn
 }
 
+# Task role for the running container (S3, ECR listing, Batch submission)
+resource "aws_iam_role" "data_ui_task" {
+  name = "${var.project_name}-data-ui-task-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ecs-tasks.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy" "data_ui_task_s3" {
+  name = "s3-access"
+  role = aws_iam_role.data_ui_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:ListBucket"
+      ]
+      Resource = [
+        aws_s3_bucket.raw_data.arn,
+        "${aws_s3_bucket.raw_data.arn}/*",
+        aws_s3_bucket.finished_data.arn,
+        "${aws_s3_bucket.finished_data.arn}/*",
+        aws_s3_bucket.checkpoints.arn,
+        "${aws_s3_bucket.checkpoints.arn}/*",
+        aws_s3_bucket.datasets.arn,
+        "${aws_s3_bucket.datasets.arn}/*"
+      ]
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "data_ui_task_ecr" {
+  name = "ecr-access"
+  role = aws_iam_role.data_ui_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:DescribeRepositories",
+          "ecr:DescribeImages",
+          "ecr:ListImages",
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr-public:DescribeRepositories",
+          "ecr-public:DescribeImages",
+          "ecr-public:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "data_ui_task_batch" {
+  name = "batch-access"
+  role = aws_iam_role.data_ui_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "batch:SubmitJob",
+        "batch:DescribeJobs",
+        "batch:ListJobs"
+      ]
+      Resource = "*"
+    }]
+  })
+}
+
 resource "aws_ecs_task_definition" "data_ui" {
   family                   = "${var.project_name}-data-ui"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = var.data_ui_cpu
-  memory                   = var.data_ui_memory
+  cpu                      = "1024"
+  memory                   = "4096"
   execution_role_arn       = aws_iam_role.data_ui_execution.arn
-  # No task role needed if using user keys; add later if migrating to IAM role auth.
+  task_role_arn            = aws_iam_role.data_ui_task.arn
 
-  container_definitions = jsonencode([
-    {
-      name      = "data-ui",
-      image     = "${aws_ecr_repository.data_ui.repository_url}:latest",
-      essential = true,
-      portMappings = [{
-        containerPort = 8501,
-        protocol      = "tcp"
-      }],
-      environment = [
-        { name = "AWS_REGION", value = var.aws_region },
-        { name = "ACCOUNT_ID", value = local.account_id },
-        { name = "ECR_REPOSITORY", value = "${aws_ecr_repository.gpu_jobs.repository_url}" },
-        { name = "RAW_BUCKET", value = aws_s3_bucket.raw_data.bucket },
-        { name = "FINISHED_BUCKET", value = aws_s3_bucket.finished_data.bucket },
-        { name = "CHECKPOINTS_BUCKET", value = aws_s3_bucket.checkpoints.bucket },
-        { name = "STREAMLIT_SERVER_ENABLE_CORS", value = "false" },
-        { name = "STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION", value = "true" }
-      ],
-      secrets = [
-        {
-          name      = "AWS_ACCESS_KEY_ID",
-          valueFrom = "${data.aws_secretsmanager_secret.data_ui_creds.arn}:AWS_ACCESS_KEY::"
-        },
-        {
-          name      = "AWS_SECRET_ACCESS_KEY",
-          valueFrom = "${data.aws_secretsmanager_secret.data_ui_creds.arn}:AWS_SECRET_KEY::"
-        }
-      ],
-      logConfiguration = {
-        logDriver = "awslogs",
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.data_ui.name,
-          awslogs-region        = var.aws_region,
-          awslogs-stream-prefix = "data-ui"
-        }
+  container_definitions = jsonencode([{
+    name      = "data-ui"
+    image     = "${aws_ecr_repository.data_ui.repository_url}:latest"
+    essential = true
+
+    portMappings = [{
+      containerPort = 8501
+      protocol      = "tcp"
+    }]
+
+    environment = [
+      { name = "AWS_REGION", value = var.aws_region },
+      { name = "ACCOUNT_ID", value = local.account_id },
+      { name = "ECR_REPOSITORY", value = aws_ecr_repository.gpu_jobs.repository_url },
+      { name = "RAW_BUCKET", value = aws_s3_bucket.raw_data.bucket },
+      { name = "FINISHED_BUCKET", value = aws_s3_bucket.finished_data.bucket },
+      { name = "CHECKPOINTS_BUCKET", value = aws_s3_bucket.checkpoints.bucket },
+      { name = "DATASETS_BUCKET", value = aws_s3_bucket.datasets.bucket },
+      { name = "BATCH_JOB_QUEUE", value = aws_batch_job_queue.gpu_queue.name },
+      { name = "BATCH_JOB_DEFINITION", value = aws_batch_job_definition.gpu_generic.arn },
+      { name = "PREFECT_SECRET_NAME", value = "PrefectApiKey" },
+      { name = "PREFECT_API_URL", value = var.prefect_api_url },
+      { name = "STREAMLIT_SERVER_ENABLE_CORS", value = "false" },
+      { name = "STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION", value = "true" }
+    ]
+
+    # Inject Prefect API key from Secrets Manager
+    secrets = [{
+      name      = "PREFECT_API_KEY"
+      valueFrom = data.aws_secretsmanager_secret.prefect_api_key.arn
+    }]
+
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.data_ui.name
+        awslogs-region        = var.aws_region
+        awslogs-stream-prefix = "data-ui"
       }
     }
-  ])
+  }])
 
   tags = local.common_tags
 }
@@ -885,7 +1011,7 @@ resource "aws_ecs_service" "data_ui" {
   name                               = "${var.project_name}-data-ui"
   cluster                            = aws_ecs_cluster.data_ui.id
   task_definition                    = aws_ecs_task_definition.data_ui.arn
-  desired_count                      = var.data_ui_desired_count
+  desired_count                      = 1
   launch_type                        = "FARGATE"
   platform_version                   = "LATEST"
   deployment_minimum_healthy_percent = 50
@@ -899,3 +1025,14 @@ resource "aws_ecs_service" "data_ui" {
 
   tags = local.common_tags
 }
+
+# ==========================================
+# COMMENTED OUT: App Runner (doesn't support WebSockets)
+# ==========================================
+# App Runner cannot run Streamlit due to WebSocket limitations.
+# Keeping this commented for reference if switching to a non-Streamlit UI later.
+
+# resource "aws_iam_role" "apprunner_ecr_access" { ... }
+# resource "aws_iam_role" "apprunner_instance" { ... }
+# resource "aws_apprunner_auto_scaling_configuration_version" "data_ui" { ... }
+# resource "aws_apprunner_service" "data_ui" { ... }

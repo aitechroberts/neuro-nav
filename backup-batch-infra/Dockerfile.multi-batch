@@ -1,0 +1,154 @@
+# STAGE 1: Builder (Heavy, with compilers)
+# Pin digest to prevent registry checks/re-pulls
+FROM nvidia/cuda@sha256:60cfa1fb926e4830ec1dbee1b7511eeba0fee2333b16cbec79c356e2afc2f359 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    UV_LINK_MODE=copy \
+    UV_CACHE_DIR=/root/.cache/uv
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-venv python3-dev \
+    git curl ca-certificates \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
+
+ARG PROJECT_DIR="."
+WORKDIR /app/neuro-nav
+
+# Copy project manifest
+COPY ${PROJECT_DIR}/neuro-nav/pyproject.toml ./pyproject.toml
+COPY ${PROJECT_DIR}/neuro-nav/uv.lock ./uv.lock
+
+# Install dependencies and build PyTorch3D
+# Mount cache to speed up and keep layer small
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-dev && \
+    . .venv/bin/activate && \
+    uv pip install --force-reinstall --no-build-isolation "git+https://github.com/facebookresearch/pytorch3d.git@stable" && \
+    # Cleanup venv to reduce size
+    find .venv -type d -name "__pycache__" -exec rm -rf {} + && \
+    find .venv -type f -name "*.pyc" -delete
+
+# STAGE 2: Runtime (Lightweight, no compilers)
+# Use 'base' instead of 'runtime' or 'cudnn-runtime'.
+# PyTorch wheels include their own CUDA/cuDNN runtime libs, so we don't need the system ones.
+# 'base' image is significantly smaller (~200MB vs ~2GB+).
+# Pin digest to prevent registry checks/re-pulls
+FROM nvidia/cuda@sha256:5dca947f477ec8ea91624447bdad7cc5f6a0dfe038ef53642c884bf5416478a6
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install runtime dependencies
+# awscli: for S3 sync
+# ffmpeg, libgl*: for cv2/image processing
+# python3: runtime interpreter
+# libgomp1: OpenMP support (often needed by PyTorch/NumPy on 'base' images)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    curl unzip awscli ffmpeg libgomp1 \
+    libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/neuro-nav
+
+# Copy the virtual environment from the builder stage
+COPY --from=builder /app/neuro-nav/.venv /app/neuro-nav/.venv
+
+ARG PROJECT_DIR="."
+
+# Copy project source code
+COPY ${PROJECT_DIR}/neuro-nav/conceptgraph/__init__.py /app/neuro-nav/conceptgraph/__init__.py
+
+COPY \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/__init__.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/batch_test_local.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/batch_vlm_mapping.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/mapping.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/slam_classes.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/utils.py \
+    /app/neuro-nav/conceptgraph/slam/
+
+COPY \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/__init__.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/general_utils.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/geometry.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/ious.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/logging_metrics.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/model_utils.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/optional_wandb_wrapper.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/vis.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/vlm.py \
+    /app/neuro-nav/conceptgraph/utils/
+
+COPY \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/__init__.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/conceptgraphs_datautils.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/conceptgraphs_rgbd_images.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/datasets_common.py \
+    /app/neuro-nav/conceptgraph/dataset/
+
+COPY \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/dataconfigs/replica/replica.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/dataconfigs/replica/replica_room0.json \
+    /app/neuro-nav/conceptgraph/dataset/dataconfigs/replica/
+
+COPY \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/base.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/base_mapping.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/base_paths.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/batch_test_local.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/batch_vlm_mapping.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/classes.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/logging_level.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/replica.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/sam.yaml \
+    /app/neuro-nav/conceptgraph/hydra_configs/
+
+COPY ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/early_exit.json /app/neuro-nav/conceptgraph/hydra_configs/early_exit.json
+COPY ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/hydra/job_logging/custom_logging_format.yaml /app/neuro-nav/conceptgraph/hydra_configs/hydra/job_logging/custom_logging_format.yaml
+
+COPY ${PROJECT_DIR}/neuro-nav/conceptgraph/scannet200_classes.txt /app/neuro-nav/conceptgraph/scannet200_classes.txt
+COPY ${PROJECT_DIR}/neuro-nav/conceptgraph/scannet200_classes_colors.json /app/neuro-nav/conceptgraph/scannet200_classes_colors.json
+
+# Environment Setup
+ENV PATH="/app/neuro-nav/.venv/bin:$PATH" \
+    PYTHONPATH=/app/neuro-nav
+
+# Defaults
+ENV REPO_ROOT=/app/neuro-nav \
+    DATA_ROOT=/app/data \
+    DATASET_ROOT=/app/data/Replica \
+    CKPT_DIR=/app/checkpoints \
+    OUTPUT_ROOT=/app/output \
+    EXP_SUFFIX=batch_vlm_local \
+    DET_EXP_SUFFIX=s_detections_batch \
+    FORCE_DET=true \
+    MAKE_EDGES=false \
+    SAVE_JSON=true \
+    SAVE_PCD=true \
+    SAVE_SEMANTIC_SNAPSHOT=true \
+    VIS_RENDER=false \
+    DEVICE=cuda \
+    STRIDE=10 \
+    START=0 \
+    END=20 \
+    PERIODIC_PCD=false \
+    PERIODIC_PCD_INTERVAL=10 \
+    BATCH_MAIN=conceptgraph.slam.batch_test_local \
+    # AWS / S3 Defaults
+    AWS_DEFAULT_REGION=us-east-1 \
+    S3_INPUT_URI="" \
+    S3_OUTPUT_URI=""
+
+# Copy NEW Multi-Batch Entrypoint
+COPY ${PROJECT_DIR}/neuro-nav/backup-batch-infra/entrypoint_multi_batch.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD []

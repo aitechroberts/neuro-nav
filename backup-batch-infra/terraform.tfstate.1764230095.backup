@@ -1,0 +1,3518 @@
+{
+  "version": 4,
+  "terraform_version": "1.13.5",
+  "serial": 80,
+  "lineage": "ea59eaf8-ce20-eef6-68a7-14b31acf5d47",
+  "outputs": {
+    "batch_job_definition_arn": {
+      "value": "arn:aws:batch:us-east-1:093646564071:job-definition/gpu-batch-gpu-generic:1",
+      "type": "string"
+    },
+    "batch_job_queue_name": {
+      "value": "gpu-batch-gpu-queue",
+      "type": "string"
+    },
+    "ecr_public_gpu_jobs_uri": {
+      "value": "public.ecr.aws/c4k6c1g4/gpu-jobs",
+      "type": "string"
+    },
+    "ecr_repository_url": {
+      "value": "public.ecr.aws/c4k6c1g4/gpu-jobs",
+      "type": "string"
+    },
+    "fsx_mount_command": {
+      "value": {
+        "dns_name": "fs-0fbd51f2e51cbf21e.fsx.us-east-1.amazonaws.com",
+        "mount_name": "svrpzbuv",
+        "mount_path": "/fsx"
+      },
+      "type": [
+        "object",
+        {
+          "dns_name": "string",
+          "mount_name": "string",
+          "mount_path": "string"
+        }
+      ]
+    },
+    "iam_group_arn": {
+      "value": "arn:aws:iam::093646564071:group/VLR-Project",
+      "type": "string"
+    },
+    "iam_group_name": {
+      "value": "VLR-Project",
+      "type": "string"
+    },
+    "iam_user_arns": {
+      "value": {
+        "ewassman": "arn:aws:iam::093646564071:user/ewassman",
+        "gmetts": "arn:aws:iam::093646564071:user/gmetts",
+        "samyakt": "arn:aws:iam::093646564071:user/samyakt"
+      },
+      "type": [
+        "object",
+        {
+          "ewassman": "string",
+          "gmetts": "string",
+          "samyakt": "string"
+        }
+      ]
+    },
+    "s3_buckets": {
+      "value": {
+        "checkpoints": "model-checkpoints-093646564071-us-east-1",
+        "finished": "data-finished-093646564071-us-east-1",
+        "raw": "data-raw-093646564071-us-east-1"
+      },
+      "type": [
+        "object",
+        {
+          "checkpoints": "string",
+          "finished": "string",
+          "raw": "string"
+        }
+      ]
+    }
+  },
+  "resources": [
+    {
+      "mode": "data",
+      "type": "aws_availability_zones",
+      "name": "available",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "all_availability_zones": null,
+            "exclude_names": null,
+            "exclude_zone_ids": null,
+            "filter": null,
+            "group_names": [
+              "us-east-1-zg-1"
+            ],
+            "id": "us-east-1",
+            "names": [
+              "us-east-1a",
+              "us-east-1b",
+              "us-east-1c",
+              "us-east-1d",
+              "us-east-1e",
+              "us-east-1f"
+            ],
+            "state": null,
+            "timeouts": null,
+            "zone_ids": [
+              "use1-az1",
+              "use1-az2",
+              "use1-az4",
+              "use1-az6",
+              "use1-az3",
+              "use1-az5"
+            ]
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0
+        }
+      ]
+    },
+    {
+      "mode": "data",
+      "type": "aws_caller_identity",
+      "name": "current",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "account_id": "093646564071",
+            "arn": "arn:aws:iam::093646564071:root",
+            "id": "093646564071",
+            "user_id": "093646564071"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0
+        }
+      ]
+    },
+    {
+      "mode": "data",
+      "type": "aws_secretsmanager_secret",
+      "name": "data_ops_ui_creds",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:secretsmanager:us-east-1:093646564071:secret:User-Keys-Ah5k4o",
+            "created_date": "2025-11-12T16:09:49Z",
+            "description": "User Keys for my main account",
+            "id": "arn:aws:secretsmanager:us-east-1:093646564071:secret:User-Keys-Ah5k4o",
+            "kms_key_id": "",
+            "last_changed_date": "2025-11-12T16:09:50Z",
+            "name": "User-Keys",
+            "policy": "",
+            "tags": {}
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0
+        }
+      ]
+    },
+    {
+      "mode": "data",
+      "type": "aws_vpc",
+      "name": "selected",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:vpc/vpc-0600548f19dbecfd0",
+            "cidr_block": "10.0.0.0/16",
+            "cidr_block_associations": [
+              {
+                "association_id": "vpc-cidr-assoc-006c6b9b6d75be062",
+                "cidr_block": "10.0.0.0/16",
+                "state": "associated"
+              }
+            ],
+            "default": false,
+            "dhcp_options_id": "dopt-0be441488ccbf679d",
+            "enable_dns_hostnames": true,
+            "enable_dns_support": true,
+            "enable_network_address_usage_metrics": false,
+            "filter": null,
+            "id": "vpc-0600548f19dbecfd0",
+            "instance_tenancy": "default",
+            "ipv6_association_id": "",
+            "ipv6_cidr_block": "",
+            "main_route_table_id": "rtb-0757533fa76e63184",
+            "owner_id": "093646564071",
+            "state": null,
+            "tags": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc",
+              "Project": "GPU-Batch-Processing"
+            },
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_batch_compute_environment",
+      "name": "gpu_spot",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:batch:us-east-1:093646564071:compute-environment/gpu-batch-gpu-spot",
+            "compute_environment_name": "gpu-batch-gpu-spot",
+            "compute_environment_name_prefix": "",
+            "compute_resources": [
+              {
+                "allocation_strategy": "BEST_FIT_PROGRESSIVE",
+                "bid_percentage": 100,
+                "desired_vcpus": 0,
+                "ec2_configuration": [
+                  {
+                    "image_id_override": "",
+                    "image_type": "ECS_AL2_NVIDIA"
+                  }
+                ],
+                "ec2_key_pair": "",
+                "image_id": "",
+                "instance_role": "arn:aws:iam::093646564071:instance-profile/gpu-batch-batch-instance-profile",
+                "instance_type": [
+                  "g5.4xlarge",
+                  "g5.8xlarge"
+                ],
+                "launch_template": [
+                  {
+                    "launch_template_id": "lt-07a9f144fc9d90937",
+                    "launch_template_name": "",
+                    "version": "$Latest"
+                  }
+                ],
+                "max_vcpus": 256,
+                "min_vcpus": 0,
+                "placement_group": "",
+                "security_group_ids": [
+                  "sg-03f4b2ef35a2c69c3"
+                ],
+                "spot_iam_fleet_role": "arn:aws:iam::093646564071:role/gpu-batch-spot-fleet-role",
+                "subnets": [
+                  "subnet-007edacc1d763da46",
+                  "subnet-073b7eec843a54a6a"
+                ],
+                "tags": {
+                  "Environment": "dev",
+                  "Name": "gpu-batch-batch-gpu-instance",
+                  "Project": "gpu-batch"
+                },
+                "type": "SPOT"
+              }
+            ],
+            "ecs_cluster_arn": "arn:aws:ecs:us-east-1:093646564071:cluster/gpu-batch-gpu-spot_Batch_3c24c062-9ec0-313f-97cc-6e78cafbd772",
+            "eks_configuration": [],
+            "id": "gpu-batch-gpu-spot",
+            "service_role": "arn:aws:iam::093646564071:role/gpu-batch-batch-service-role",
+            "state": "ENABLED",
+            "status": "VALID",
+            "status_reason": "ComputeEnvironment Healthy",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "type": "MANAGED",
+            "update_policy": []
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_fsx_lustre_file_system.checkpoints",
+            "aws_fsx_lustre_file_system.raw_data",
+            "aws_iam_instance_profile.batch_instance",
+            "aws_iam_role.batch_instance",
+            "aws_iam_role.batch_service",
+            "aws_iam_role.spot_fleet",
+            "aws_launch_template.batch_gpu",
+            "aws_s3_bucket.checkpoints",
+            "aws_s3_bucket.raw_data",
+            "aws_security_group.batch_compute",
+            "aws_security_group.fsx_lustre",
+            "data.aws_caller_identity.current",
+            "module.vpc.aws_subnet.private",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_batch_job_definition",
+      "name": "gpu_generic",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:batch:us-east-1:093646564071:job-definition/gpu-batch-gpu-generic:1",
+            "arn_prefix": "arn:aws:batch:us-east-1:093646564071:job-definition/gpu-batch-gpu-generic",
+            "container_properties": "{\"command\":[\"bash\",\"-c\",\"echo 'Override this command'\"],\"environment\":[{\"name\":\"FSX_MOUNT\",\"value\":\"/fsx\"},{\"name\":\"FSX_RAW_MOUNT\",\"value\":\"/fsx-raw\"}],\"executionRoleArn\":\"arn:aws:iam::093646564071:role/gpu-batch-batch-execution-role\",\"image\":\"public.ecr.aws/c4k6c1g4/gpu-jobs:latest\",\"jobRoleArn\":\"arn:aws:iam::093646564071:role/gpu-batch-batch-job-role\",\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/aws/batch/gpu-batch\",\"awslogs-region\":\"us-east-1\",\"awslogs-stream-prefix\":\"gpu-job\"},\"secretOptions\":[]},\"mountPoints\":[{\"containerPath\":\"/fsx\",\"sourceVolume\":\"fsx-lustre\"},{\"containerPath\":\"/fsx-raw\",\"sourceVolume\":\"fsx-lustre-raw\"}],\"resourceRequirements\":[{\"type\":\"GPU\",\"value\":\"1\"},{\"type\":\"VCPU\",\"value\":\"4\"},{\"type\":\"MEMORY\",\"value\":\"30000\"}],\"secrets\":[],\"ulimits\":[],\"volumes\":[{\"host\":{\"sourcePath\":\"/fsx\"},\"name\":\"fsx-lustre\"},{\"host\":{\"sourcePath\":\"/fsx-raw\"},\"name\":\"fsx-lustre-raw\"}]}",
+            "deregister_on_new_revision": true,
+            "ecs_properties": "",
+            "eks_properties": [],
+            "id": "arn:aws:batch:us-east-1:093646564071:job-definition/gpu-batch-gpu-generic:1",
+            "name": "gpu-batch-gpu-generic",
+            "node_properties": "",
+            "parameters": null,
+            "platform_capabilities": [
+              "EC2"
+            ],
+            "propagate_tags": false,
+            "retry_strategy": [
+              {
+                "attempts": 1,
+                "evaluate_on_exit": []
+              }
+            ],
+            "revision": 1,
+            "scheduling_priority": 0,
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "timeout": [
+              {
+                "attempt_duration_seconds": 86400
+              }
+            ],
+            "type": "container"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_cloudwatch_log_group.batch_jobs",
+            "aws_ecrpublic_repository.gpu_jobs_public",
+            "aws_iam_role.batch_execution",
+            "aws_iam_role.batch_job"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_batch_job_queue",
+      "name": "gpu_queue",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:batch:us-east-1:093646564071:job-queue/gpu-batch-gpu-queue",
+            "compute_environment_order": [
+              {
+                "compute_environment": "arn:aws:batch:us-east-1:093646564071:compute-environment/gpu-batch-gpu-spot",
+                "order": 1
+              }
+            ],
+            "compute_environments": null,
+            "id": "arn:aws:batch:us-east-1:093646564071:job-queue/gpu-batch-gpu-queue",
+            "job_state_time_limit_action": [],
+            "name": "gpu-batch-gpu-queue",
+            "priority": 1,
+            "scheduling_policy_arn": null,
+            "state": "ENABLED",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "dependencies": [
+            "aws_batch_compute_environment.gpu_spot",
+            "aws_fsx_lustre_file_system.checkpoints",
+            "aws_fsx_lustre_file_system.raw_data",
+            "aws_iam_instance_profile.batch_instance",
+            "aws_iam_role.batch_instance",
+            "aws_iam_role.batch_service",
+            "aws_iam_role.spot_fleet",
+            "aws_launch_template.batch_gpu",
+            "aws_s3_bucket.checkpoints",
+            "aws_s3_bucket.raw_data",
+            "aws_security_group.batch_compute",
+            "aws_security_group.fsx_lustre",
+            "data.aws_caller_identity.current",
+            "module.vpc.aws_subnet.private",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_cloudwatch_event_rule",
+      "name": "batch_failures",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:events:us-east-1:093646564071:rule/gpu-batch-batch-failures",
+            "description": "Capture Batch job failures",
+            "event_bus_name": "default",
+            "event_pattern": "{\"detail\":{\"jobQueue\":[\"arn:aws:batch:us-east-1:093646564071:job-queue/gpu-batch-gpu-queue\"],\"status\":[\"FAILED\"]},\"detail-type\":[\"Batch Job State Change\"],\"source\":[\"aws.batch\"]}",
+            "force_destroy": false,
+            "id": "gpu-batch-batch-failures",
+            "is_enabled": true,
+            "name": "gpu-batch-batch-failures",
+            "name_prefix": "",
+            "role_arn": "",
+            "schedule_expression": "",
+            "state": "ENABLED",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            }
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjEifQ==",
+          "dependencies": [
+            "aws_batch_compute_environment.gpu_spot",
+            "aws_batch_job_queue.gpu_queue",
+            "aws_fsx_lustre_file_system.checkpoints",
+            "aws_fsx_lustre_file_system.raw_data",
+            "aws_iam_instance_profile.batch_instance",
+            "aws_iam_role.batch_instance",
+            "aws_iam_role.batch_service",
+            "aws_iam_role.spot_fleet",
+            "aws_launch_template.batch_gpu",
+            "aws_s3_bucket.checkpoints",
+            "aws_s3_bucket.raw_data",
+            "aws_security_group.batch_compute",
+            "aws_security_group.fsx_lustre",
+            "data.aws_caller_identity.current",
+            "module.vpc.aws_subnet.private",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_cloudwatch_event_target",
+      "name": "sns",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "appsync_target": [],
+            "arn": "arn:aws:sns:us-east-1:093646564071:gpu-batch-batch-failures",
+            "batch_target": [],
+            "dead_letter_config": [],
+            "ecs_target": [],
+            "event_bus_name": "default",
+            "force_destroy": false,
+            "http_target": [],
+            "id": "gpu-batch-batch-failures-SendToSNS",
+            "input": "",
+            "input_path": "",
+            "input_transformer": [
+              {
+                "input_paths": {
+                  "job": "$.detail.jobName",
+                  "reason": "$.detail.statusReason",
+                  "status": "$.detail.status"
+                },
+                "input_template": "\"Batch Job Failed: Job=\u003cjob\u003e, Status=\u003cstatus\u003e, Reason=\u003creason\u003e\""
+              }
+            ],
+            "kinesis_target": [],
+            "redshift_target": [],
+            "retry_policy": [],
+            "role_arn": "",
+            "rule": "gpu-batch-batch-failures",
+            "run_command_targets": [],
+            "sagemaker_pipeline_target": [],
+            "sqs_target": [],
+            "target_id": "SendToSNS"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjEifQ==",
+          "dependencies": [
+            "aws_batch_compute_environment.gpu_spot",
+            "aws_batch_job_queue.gpu_queue",
+            "aws_cloudwatch_event_rule.batch_failures",
+            "aws_fsx_lustre_file_system.checkpoints",
+            "aws_fsx_lustre_file_system.raw_data",
+            "aws_iam_instance_profile.batch_instance",
+            "aws_iam_role.batch_instance",
+            "aws_iam_role.batch_service",
+            "aws_iam_role.spot_fleet",
+            "aws_launch_template.batch_gpu",
+            "aws_s3_bucket.checkpoints",
+            "aws_s3_bucket.raw_data",
+            "aws_security_group.batch_compute",
+            "aws_security_group.fsx_lustre",
+            "aws_sns_topic.batch_failures",
+            "data.aws_caller_identity.current",
+            "module.vpc.aws_subnet.private",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_cloudwatch_log_group",
+      "name": "batch_jobs",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:logs:us-east-1:093646564071:log-group:/aws/batch/gpu-batch",
+            "id": "/aws/batch/gpu-batch",
+            "kms_key_id": "",
+            "log_group_class": "STANDARD",
+            "name": "/aws/batch/gpu-batch",
+            "name_prefix": "",
+            "retention_in_days": 7,
+            "skip_destroy": false,
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            }
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_cloudwatch_log_group",
+      "name": "data_ops_ui",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:logs:us-east-1:093646564071:log-group:/ecs/gpu-batch-data-ops-ui",
+            "id": "/ecs/gpu-batch-data-ops-ui",
+            "kms_key_id": "",
+            "log_group_class": "STANDARD",
+            "name": "/ecs/gpu-batch-data-ops-ui",
+            "name_prefix": "",
+            "retention_in_days": 7,
+            "skip_destroy": false,
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            }
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_ecr_repository",
+      "name": "data_ops_ui",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ecr:us-east-1:093646564071:repository/data-ops-ui",
+            "encryption_configuration": [
+              {
+                "encryption_type": "AES256",
+                "kms_key": ""
+              }
+            ],
+            "force_delete": null,
+            "id": "data-ops-ui",
+            "image_scanning_configuration": [
+              {
+                "scan_on_push": true
+              }
+            ],
+            "image_tag_mutability": "MUTABLE",
+            "name": "data-ops-ui",
+            "registry_id": "093646564071",
+            "repository_url": "093646564071.dkr.ecr.us-east-1.amazonaws.com/data-ops-ui",
+            "tags": {
+              "Environment": "dev",
+              "Name": "Data UI Container Registry",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "Data UI Container Registry",
+              "Project": "gpu-batch"
+            },
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiZGVsZXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_ecrpublic_repository",
+      "name": "gpu_jobs_public",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ecr-public::093646564071:repository/gpu-jobs",
+            "catalog_data": [
+              {
+                "about_text": null,
+                "architectures": null,
+                "description": null,
+                "logo_image_blob": null,
+                "operating_systems": null,
+                "usage_text": null
+              }
+            ],
+            "force_destroy": false,
+            "id": "gpu-jobs",
+            "registry_id": "093646564071",
+            "repository_name": "gpu-jobs",
+            "repository_uri": "public.ecr.aws/c4k6c1g4/gpu-jobs",
+            "tags": {
+              "Environment": "dev",
+              "Name": "Public GPU Jobs Container Registry",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "Public GPU Jobs Container Registry",
+              "Project": "gpu-batch"
+            },
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiZGVsZXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_ecs_cluster",
+      "name": "data_ops_ui",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ecs:us-east-1:093646564071:cluster/gpu-batch-data-ops-ui",
+            "configuration": [],
+            "id": "arn:aws:ecs:us-east-1:093646564071:cluster/gpu-batch-data-ops-ui",
+            "name": "gpu-batch-data-ops-ui",
+            "service_connect_defaults": [],
+            "setting": [
+              {
+                "name": "containerInsights",
+                "value": "disabled"
+              }
+            ],
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            }
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_ecs_service",
+      "name": "data_ops_ui",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "alarms": [],
+            "availability_zone_rebalancing": "DISABLED",
+            "capacity_provider_strategy": [],
+            "cluster": "arn:aws:ecs:us-east-1:093646564071:cluster/gpu-batch-data-ops-ui",
+            "deployment_circuit_breaker": [
+              {
+                "enable": false,
+                "rollback": false
+              }
+            ],
+            "deployment_controller": [
+              {
+                "type": "ECS"
+              }
+            ],
+            "deployment_maximum_percent": 200,
+            "deployment_minimum_healthy_percent": 50,
+            "desired_count": 1,
+            "enable_ecs_managed_tags": false,
+            "enable_execute_command": false,
+            "force_delete": null,
+            "force_new_deployment": null,
+            "health_check_grace_period_seconds": 0,
+            "iam_role": "/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+            "id": "arn:aws:ecs:us-east-1:093646564071:service/gpu-batch-data-ops-ui/gpu-batch-data-ops-ui",
+            "launch_type": "FARGATE",
+            "load_balancer": [],
+            "name": "gpu-batch-data-ops-ui",
+            "network_configuration": [
+              {
+                "assign_public_ip": true,
+                "security_groups": [
+                  "sg-033ae525c0cc50a35"
+                ],
+                "subnets": [
+                  "subnet-0684cfbd466bd450d",
+                  "subnet-0d2ee8a569aa772f7"
+                ]
+              }
+            ],
+            "ordered_placement_strategy": [],
+            "placement_constraints": [],
+            "platform_version": "LATEST",
+            "propagate_tags": "NONE",
+            "scheduling_strategy": "REPLICA",
+            "service_connect_configuration": [],
+            "service_registries": [],
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "task_definition": "arn:aws:ecs:us-east-1:093646564071:task-definition/gpu-batch-data-ops-ui:1",
+            "timeouts": null,
+            "triggers": {},
+            "volume_configuration": [],
+            "vpc_lattice_configurations": [],
+            "wait_for_steady_state": false
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "aws_cloudwatch_log_group.data_ops_ui",
+            "aws_ecr_repository.data_ops_ui",
+            "aws_ecrpublic_repository.gpu_jobs_public",
+            "aws_ecs_cluster.data_ops_ui",
+            "aws_ecs_task_definition.data_ops_ui",
+            "aws_iam_role.data_ops_ui_execution",
+            "aws_s3_bucket.checkpoints",
+            "aws_s3_bucket.finished_data",
+            "aws_s3_bucket.raw_data",
+            "aws_security_group.data_ops_ui",
+            "data.aws_caller_identity.current",
+            "data.aws_secretsmanager_secret.data_ops_ui_creds",
+            "module.vpc.aws_subnet.public",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_ecs_task_definition",
+      "name": "data_ops_ui",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ecs:us-east-1:093646564071:task-definition/gpu-batch-data-ops-ui:1",
+            "arn_without_revision": "arn:aws:ecs:us-east-1:093646564071:task-definition/gpu-batch-data-ops-ui",
+            "container_definitions": "[{\"environment\":[{\"name\":\"ACCOUNT_ID\",\"value\":\"093646564071\"},{\"name\":\"AWS_REGION\",\"value\":\"us-east-1\"},{\"name\":\"CHECKPOINTS_BUCKET\",\"value\":\"model-checkpoints-093646564071-us-east-1\"},{\"name\":\"ECR_REPOSITORY\",\"value\":\"public.ecr.aws/c4k6c1g4/gpu-jobs\"},{\"name\":\"FINISHED_BUCKET\",\"value\":\"data-finished-093646564071-us-east-1\"},{\"name\":\"RAW_BUCKET\",\"value\":\"data-raw-093646564071-us-east-1\"},{\"name\":\"STREAMLIT_SERVER_ENABLE_CORS\",\"value\":\"false\"},{\"name\":\"STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION\",\"value\":\"true\"}],\"essential\":true,\"image\":\"093646564071.dkr.ecr.us-east-1.amazonaws.com/data-ops-ui:latest\",\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/ecs/gpu-batch-data-ops-ui\",\"awslogs-region\":\"us-east-1\",\"awslogs-stream-prefix\":\"data-ops-ui\"}},\"mountPoints\":[],\"name\":\"data-ops-ui\",\"portMappings\":[{\"containerPort\":8501,\"hostPort\":8501,\"protocol\":\"tcp\"}],\"secrets\":[{\"name\":\"AWS_ACCESS_KEY_ID\",\"valueFrom\":\"arn:aws:secretsmanager:us-east-1:093646564071:secret:User-Keys-Ah5k4o:AWS_ACCESS_KEY::\"},{\"name\":\"AWS_SECRET_ACCESS_KEY\",\"valueFrom\":\"arn:aws:secretsmanager:us-east-1:093646564071:secret:User-Keys-Ah5k4o:AWS_SECRET_KEY::\"}],\"systemControls\":[],\"volumesFrom\":[]}]",
+            "cpu": "1024",
+            "enable_fault_injection": false,
+            "ephemeral_storage": [],
+            "execution_role_arn": "arn:aws:iam::093646564071:role/gpu-batch-data-ops-ui-exec-role",
+            "family": "gpu-batch-data-ops-ui",
+            "id": "gpu-batch-data-ops-ui",
+            "inference_accelerator": [],
+            "ipc_mode": "",
+            "memory": "6144",
+            "network_mode": "awsvpc",
+            "pid_mode": "",
+            "placement_constraints": [],
+            "proxy_configuration": [],
+            "requires_compatibilities": [
+              "FARGATE"
+            ],
+            "revision": 1,
+            "runtime_platform": [],
+            "skip_destroy": false,
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "task_role_arn": "",
+            "track_latest": false,
+            "volume": []
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjEifQ==",
+          "dependencies": [
+            "aws_cloudwatch_log_group.data_ops_ui",
+            "aws_ecr_repository.data_ops_ui",
+            "aws_ecrpublic_repository.gpu_jobs_public",
+            "aws_iam_role.data_ops_ui_execution",
+            "aws_s3_bucket.checkpoints",
+            "aws_s3_bucket.finished_data",
+            "aws_s3_bucket.raw_data",
+            "data.aws_caller_identity.current",
+            "data.aws_secretsmanager_secret.data_ops_ui_creds"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_fsx_lustre_file_system",
+      "name": "checkpoints",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:fsx:us-east-1:093646564071:file-system/fs-0fbd51f2e51cbf21e",
+            "auto_import_policy": "NONE",
+            "automatic_backup_retention_days": 0,
+            "backup_id": null,
+            "copy_tags_to_backups": false,
+            "daily_automatic_backup_start_time": "",
+            "data_compression_type": "NONE",
+            "data_read_cache_configuration": [],
+            "deployment_type": "SCRATCH_2",
+            "dns_name": "fs-0fbd51f2e51cbf21e.fsx.us-east-1.amazonaws.com",
+            "drive_cache_type": "",
+            "efa_enabled": false,
+            "export_path": "s3://model-checkpoints-093646564071-us-east-1",
+            "file_system_type_version": "2.10",
+            "final_backup_tags": null,
+            "id": "fs-0fbd51f2e51cbf21e",
+            "import_path": "s3://model-checkpoints-093646564071-us-east-1",
+            "imported_file_chunk_size": 1024,
+            "kms_key_id": "",
+            "log_configuration": [
+              {
+                "destination": "",
+                "level": "DISABLED"
+              }
+            ],
+            "metadata_configuration": [],
+            "mount_name": "svrpzbuv",
+            "network_interface_ids": [
+              "eni-05faf6848410de576",
+              "eni-01f56ee0e8e0787f2"
+            ],
+            "owner_id": "093646564071",
+            "per_unit_storage_throughput": 0,
+            "root_squash_configuration": [],
+            "security_group_ids": [
+              "sg-0af1eb053cd9d5b23"
+            ],
+            "skip_final_backup": true,
+            "storage_capacity": 2400,
+            "storage_type": "SSD",
+            "subnet_ids": [
+              "subnet-007edacc1d763da46"
+            ],
+            "tags": {
+              "Environment": "dev",
+              "Name": "gpu-batch-fsx-checkpoints",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-fsx-checkpoints",
+              "Project": "gpu-batch"
+            },
+            "throughput_capacity": 0,
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0",
+            "weekly_maintenance_start_time": "7:10:30"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxODAwMDAwMDAwMDAwLCJkZWxldGUiOjE4MDAwMDAwMDAwMDAsInVwZGF0ZSI6MTgwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_s3_bucket.checkpoints",
+            "aws_security_group.batch_compute",
+            "aws_security_group.fsx_lustre",
+            "data.aws_caller_identity.current",
+            "module.vpc.aws_subnet.private",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_fsx_lustre_file_system",
+      "name": "raw_data",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:fsx:us-east-1:093646564071:file-system/fs-0cdc4f8287351cd0f",
+            "auto_import_policy": "NONE",
+            "automatic_backup_retention_days": 0,
+            "backup_id": null,
+            "copy_tags_to_backups": false,
+            "daily_automatic_backup_start_time": "",
+            "data_compression_type": "NONE",
+            "data_read_cache_configuration": [],
+            "deployment_type": "SCRATCH_2",
+            "dns_name": "fs-0cdc4f8287351cd0f.fsx.us-east-1.amazonaws.com",
+            "drive_cache_type": "",
+            "efa_enabled": false,
+            "export_path": "s3://data-raw-093646564071-us-east-1",
+            "file_system_type_version": "2.10",
+            "final_backup_tags": null,
+            "id": "fs-0cdc4f8287351cd0f",
+            "import_path": "s3://data-raw-093646564071-us-east-1",
+            "imported_file_chunk_size": 1024,
+            "kms_key_id": "",
+            "log_configuration": [
+              {
+                "destination": "",
+                "level": "DISABLED"
+              }
+            ],
+            "metadata_configuration": [],
+            "mount_name": "s5rpzbuv",
+            "network_interface_ids": [
+              "eni-07765e40507f10a74",
+              "eni-08a4d604673c0cdfc"
+            ],
+            "owner_id": "093646564071",
+            "per_unit_storage_throughput": 0,
+            "root_squash_configuration": [],
+            "security_group_ids": [
+              "sg-0af1eb053cd9d5b23"
+            ],
+            "skip_final_backup": true,
+            "storage_capacity": 2400,
+            "storage_type": "SSD",
+            "subnet_ids": [
+              "subnet-007edacc1d763da46"
+            ],
+            "tags": {
+              "Environment": "dev",
+              "Name": "gpu-batch-fsx-raw",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-fsx-raw",
+              "Project": "gpu-batch"
+            },
+            "throughput_capacity": 0,
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0",
+            "weekly_maintenance_start_time": "4:09:00"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxODAwMDAwMDAwMDAwLCJkZWxldGUiOjE4MDAwMDAwMDAwMDAsInVwZGF0ZSI6MTgwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_s3_bucket.raw_data",
+            "aws_security_group.batch_compute",
+            "aws_security_group.fsx_lustre",
+            "data.aws_caller_identity.current",
+            "module.vpc.aws_subnet.private",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_group",
+      "name": "team",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:group/VLR-Project",
+            "id": "VLR-Project",
+            "name": "VLR-Project",
+            "path": "/",
+            "unique_id": "AGPARLTOFFLTUSQNGISYF"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjAifQ=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_group_membership",
+      "name": "team_members",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "group": "VLR-Project",
+            "id": "VLR-Project-membership",
+            "name": "VLR-Project-membership",
+            "users": [
+              "ewassman",
+              "gmetts",
+              "samyakt"
+            ]
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_group.team"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_group_policy_attachment",
+      "name": "ecr_public_full",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "group": "VLR-Project",
+            "id": "VLR-Project-arn:aws:iam::aws:policy/AmazonElasticContainerRegistryPublicFullAccess",
+            "policy_arn": "arn:aws:iam::aws:policy/AmazonElasticContainerRegistryPublicFullAccess"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjAifQ==",
+          "dependencies": [
+            "aws_iam_group.team"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_group_policy_attachment",
+      "name": "iam_user_change_password",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "group": "VLR-Project",
+            "id": "VLR-Project-20251112163645971400000001",
+            "policy_arn": "arn:aws:iam::aws:policy/IAMUserChangePassword"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_group.team"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_group_policy_attachment",
+      "name": "s3_full",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "group": "VLR-Project",
+            "id": "VLR-Project-arn:aws:iam::aws:policy/AmazonS3FullAccess",
+            "policy_arn": "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjAifQ==",
+          "dependencies": [
+            "aws_iam_group.team"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_group_policy_attachment",
+      "name": "self_manage_access_keys",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "group": "VLR-Project",
+            "id": "VLR-Project-20251112163646310300000006",
+            "policy_arn": "arn:aws:iam::093646564071:policy/gpu-batch-SelfManageAccessKeys"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_group.team",
+            "aws_iam_policy.self_manage_access_keys",
+            "data.aws_caller_identity.current"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_instance_profile",
+      "name": "batch_instance",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:instance-profile/gpu-batch-batch-instance-profile",
+            "create_date": "2025-11-12T16:36:47Z",
+            "id": "gpu-batch-batch-instance-profile",
+            "name": "gpu-batch-batch-instance-profile",
+            "name_prefix": "",
+            "path": "/",
+            "role": "gpu-batch-batch-instance-role",
+            "tags": null,
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "GPU-Batch-Processing"
+            },
+            "unique_id": "AIPARLTOFFLT7VUZY5LML"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.batch_instance"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_policy",
+      "name": "data_ops_ui_exec_secrets",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:policy/gpu-batch-data-ops-ui-exec-secrets",
+            "attachment_count": 0,
+            "description": "",
+            "id": "arn:aws:iam::093646564071:policy/gpu-batch-data-ops-ui-exec-secrets",
+            "name": "gpu-batch-data-ops-ui-exec-secrets",
+            "name_prefix": "",
+            "path": "/",
+            "policy": "{\"Statement\":[{\"Action\":[\"secretsmanager:GetSecretValue\",\"kms:Decrypt\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:secretsmanager:us-east-1:093646564071:secret:User-Keys-Ah5k4o\",\"arn:aws:kms:us-east-1:093646564071:key/*\"]}],\"Version\":\"2012-10-17\"}",
+            "policy_id": "ANPARLTOFFLTZY3AUNYGS",
+            "tags": null,
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "GPU-Batch-Processing"
+            }
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "data.aws_caller_identity.current",
+            "data.aws_secretsmanager_secret.data_ops_ui_creds"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_policy",
+      "name": "self_manage_access_keys",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:policy/gpu-batch-SelfManageAccessKeys",
+            "attachment_count": 0,
+            "description": "Allow users to manage their own access keys via console",
+            "id": "arn:aws:iam::093646564071:policy/gpu-batch-SelfManageAccessKeys",
+            "name": "gpu-batch-SelfManageAccessKeys",
+            "name_prefix": "",
+            "path": "/",
+            "policy": "{\"Statement\":[{\"Action\":[\"iam:CreateAccessKey\",\"iam:ListAccessKeys\",\"iam:DeleteAccessKey\",\"iam:UpdateAccessKey\"],\"Effect\":\"Allow\",\"Resource\":\"arn:aws:iam::093646564071:user/${aws:username}\",\"Sid\":\"ManageOwnAccessKeys\"},{\"Action\":[\"iam:GetUser\"],\"Effect\":\"Allow\",\"Resource\":\"*\",\"Sid\":\"GetOwnUser\"}],\"Version\":\"2012-10-17\"}",
+            "policy_id": "ANPARLTOFFLTY4CYRG5YK",
+            "tags": null,
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "GPU-Batch-Processing"
+            }
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "data.aws_caller_identity.current"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "batch_execution",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:role/gpu-batch-batch-execution-role",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ecs-tasks.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2025-11-12T16:36:46Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "gpu-batch-batch-execution-role",
+            "inline_policy": [],
+            "managed_policy_arns": [],
+            "max_session_duration": 3600,
+            "name": "gpu-batch-batch-execution-role",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "unique_id": "AROARLTOFFLT6LMYMIZAZ"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "batch_instance",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:role/gpu-batch-batch-instance-role",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ec2.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2025-11-12T16:36:47Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "gpu-batch-batch-instance-role",
+            "inline_policy": [],
+            "managed_policy_arns": [],
+            "max_session_duration": 3600,
+            "name": "gpu-batch-batch-instance-role",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "unique_id": "AROARLTOFFLTRIFK4ZFQG"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "batch_job",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:role/gpu-batch-batch-job-role",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ecs-tasks.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2025-11-12T16:36:46Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "gpu-batch-batch-job-role",
+            "inline_policy": [],
+            "managed_policy_arns": [],
+            "max_session_duration": 3600,
+            "name": "gpu-batch-batch-job-role",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "unique_id": "AROARLTOFFLT4NTG626SI"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "batch_service",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:role/gpu-batch-batch-service-role",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"batch.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2025-11-12T16:36:46Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "gpu-batch-batch-service-role",
+            "inline_policy": [],
+            "managed_policy_arns": [],
+            "max_session_duration": 3600,
+            "name": "gpu-batch-batch-service-role",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "unique_id": "AROARLTOFFLT6M2BV2KX7"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "data_ops_ui_execution",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:role/gpu-batch-data-ops-ui-exec-role",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ecs-tasks.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2025-11-12T16:36:46Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "gpu-batch-data-ops-ui-exec-role",
+            "inline_policy": [],
+            "managed_policy_arns": [],
+            "max_session_duration": 3600,
+            "name": "gpu-batch-data-ops-ui-exec-role",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "unique_id": "AROARLTOFFLTWTZ4HKUCL"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "spot_fleet",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:role/gpu-batch-spot-fleet-role",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"spotfleet.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2025-11-12T16:36:46Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "gpu-batch-spot-fleet-role",
+            "inline_policy": [],
+            "managed_policy_arns": [],
+            "max_session_duration": 3600,
+            "name": "gpu-batch-spot-fleet-role",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "unique_id": "AROARLTOFFLT7OHXQ5U7R"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy",
+      "name": "batch_job_fsx",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "gpu-batch-batch-job-role:fsx-access",
+            "name": "fsx-access",
+            "name_prefix": "",
+            "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"fsx:DescribeFileSystems\",\"fsx:DescribeDataRepositoryTasks\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:fsx:us-east-1:093646564071:file-system/fs-0fbd51f2e51cbf21e\",\"arn:aws:fsx:us-east-1:093646564071:file-system/fs-0cdc4f8287351cd0f\"]}]}",
+            "role": "gpu-batch-batch-job-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_fsx_lustre_file_system.checkpoints",
+            "aws_fsx_lustre_file_system.raw_data",
+            "aws_iam_role.batch_job",
+            "aws_s3_bucket.checkpoints",
+            "aws_s3_bucket.raw_data",
+            "aws_security_group.batch_compute",
+            "aws_security_group.fsx_lustre",
+            "data.aws_caller_identity.current",
+            "module.vpc.aws_subnet.private",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy",
+      "name": "batch_job_s3",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "gpu-batch-batch-job-role:s3-access",
+            "name": "s3-access",
+            "name_prefix": "",
+            "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:GetObject\",\"s3:ListBucket\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::data-raw-093646564071-us-east-1\",\"arn:aws:s3:::data-raw-093646564071-us-east-1/*\",\"arn:aws:s3:::model-checkpoints-093646564071-us-east-1\",\"arn:aws:s3:::model-checkpoints-093646564071-us-east-1/*\"]},{\"Action\":[\"s3:PutObject\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::data-finished-093646564071-us-east-1/*\",\"arn:aws:s3:::model-checkpoints-093646564071-us-east-1/*\"]}]}",
+            "role": "gpu-batch-batch-job-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.batch_job",
+            "aws_s3_bucket.checkpoints",
+            "aws_s3_bucket.finished_data",
+            "aws_s3_bucket.raw_data",
+            "data.aws_caller_identity.current"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "batch_execution",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "gpu-batch-batch-execution-role-20251112163646157800000002",
+            "policy_arn": "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+            "role": "gpu-batch-batch-execution-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.batch_execution"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "batch_instance_ecs",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "gpu-batch-batch-instance-role-20251112163646385200000008",
+            "policy_arn": "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role",
+            "role": "gpu-batch-batch-instance-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.batch_instance"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "batch_service",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "gpu-batch-batch-service-role-20251112163646283700000005",
+            "policy_arn": "arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole",
+            "role": "gpu-batch-batch-service-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.batch_service"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "data_ops_ui_exec_base",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "gpu-batch-data-ops-ui-exec-role-20251112163646163800000003",
+            "policy_arn": "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+            "role": "gpu-batch-data-ops-ui-exec-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.data_ops_ui_execution"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "data_ops_ui_exec_secrets_attach",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "gpu-batch-data-ops-ui-exec-role-20251112163646385100000007",
+            "policy_arn": "arn:aws:iam::093646564071:policy/gpu-batch-data-ops-ui-exec-secrets",
+            "role": "gpu-batch-data-ops-ui-exec-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_policy.data_ops_ui_exec_secrets",
+            "aws_iam_role.data_ops_ui_execution",
+            "data.aws_caller_identity.current",
+            "data.aws_secretsmanager_secret.data_ops_ui_creds"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "spot_fleet",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "gpu-batch-spot-fleet-role-20251112163646178000000004",
+            "policy_arn": "arn:aws:iam::aws:policy/service-role/AmazonEC2SpotFleetTaggingRole",
+            "role": "gpu-batch-spot-fleet-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.spot_fleet"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_user",
+      "name": "users",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": "ewassman",
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:user/ewassman",
+            "force_destroy": false,
+            "id": "ewassman",
+            "name": "ewassman",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "unique_id": "AIDARLTOFFLT7KHLMPMKT"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        },
+        {
+          "index_key": "gmetts",
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:user/gmetts",
+            "force_destroy": false,
+            "id": "gmetts",
+            "name": "gmetts",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "unique_id": "AIDARLTOFFLT63WPBBASX"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        },
+        {
+          "index_key": "samyakt",
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::093646564071:user/samyakt",
+            "force_destroy": false,
+            "id": "samyakt",
+            "name": "samyakt",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "unique_id": "AIDARLTOFFLT53TTXPC5O"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_launch_template",
+      "name": "batch_gpu",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:launch-template/lt-07a9f144fc9d90937",
+            "block_device_mappings": [
+              {
+                "device_name": "/dev/xvda",
+                "ebs": [
+                  {
+                    "delete_on_termination": "true",
+                    "encrypted": "",
+                    "iops": 0,
+                    "kms_key_id": "",
+                    "snapshot_id": "",
+                    "throughput": 0,
+                    "volume_initialization_rate": 0,
+                    "volume_size": 100,
+                    "volume_type": "gp3"
+                  }
+                ],
+                "no_device": "",
+                "virtual_name": ""
+              }
+            ],
+            "capacity_reservation_specification": [],
+            "cpu_options": [],
+            "credit_specification": [],
+            "default_version": 1,
+            "description": "",
+            "disable_api_stop": false,
+            "disable_api_termination": false,
+            "ebs_optimized": "",
+            "elastic_gpu_specifications": [],
+            "elastic_inference_accelerator": [],
+            "enclave_options": [],
+            "hibernation_options": [],
+            "iam_instance_profile": [],
+            "id": "lt-07a9f144fc9d90937",
+            "image_id": "",
+            "instance_initiated_shutdown_behavior": "",
+            "instance_market_options": [],
+            "instance_requirements": [],
+            "instance_type": "",
+            "kernel_id": "",
+            "key_name": "",
+            "latest_version": 1,
+            "license_specification": [],
+            "maintenance_options": [],
+            "metadata_options": [],
+            "monitoring": [],
+            "name": "gpu-batch-gpu-20251112164700510900000014",
+            "name_prefix": "gpu-batch-gpu-",
+            "network_interfaces": [],
+            "placement": [],
+            "private_dns_name_options": [],
+            "ram_disk_id": "",
+            "security_group_names": null,
+            "tag_specifications": [],
+            "tags": {
+              "Environment": "dev",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Project": "gpu-batch"
+            },
+            "update_default_version": null,
+            "user_data": "IyEvYmluL2Jhc2gKIyBDcmVhdGUgdGhpcyBmaWxlIGZvciB0aGUgbGF1bmNoIHRlbXBsYXRlCgpjYXQgPiB1c2VyX2RhdGEuc2ggPDwnRU9GJwojIS9iaW4vYmFzaApzZXQgLWUKCiMgSW5zdGFsbCBMdXN0cmUgY2xpZW50CmFtYXpvbi1saW51eC1leHRyYXMgaW5zdGFsbCAteSBsdXN0cmUKCiMgQ3JlYXRlIG1vdW50IHBvaW50cwpta2RpciAtcCAvZnN4Cm1rZGlyIC1wIC9mc3gtcmF3CgojIE1vdW50IEZTeCBMdXN0cmUgKGNoZWNrcG9pbnRzKQptb3VudCAtdCBsdXN0cmUgLW8gZGVmYXVsdHMsX25ldGRldixmbG9jayBmcy0wZmJkNTFmMmU1MWNiZjIxZS5mc3gudXMtZWFzdC0xLmFtYXpvbmF3cy5jb21AdGNwOi9zdnJwemJ1diAvZnN4CgojIE1vdW50IEZTeCBMdXN0cmUgKHJhdykKbW91bnQgLXQgbHVzdHJlIC1vIGRlZmF1bHRzLF9uZXRkZXYsZmxvY2sgZnMtMGNkYzRmODI4NzM1MWNkMGYuZnN4LnVzLWVhc3QtMS5hbWF6b25hd3MuY29tQHRjcDovczVycHpidXYgL2ZzeC1yYXcKCiMgQWRkIHRvIGZzdGFiIGZvciBwZXJzaXN0ZW5jZQplY2hvICJmcy0wZmJkNTFmMmU1MWNiZjIxZS5mc3gudXMtZWFzdC0xLmFtYXpvbmF3cy5jb21AdGNwOi9zdnJwemJ1diAvZnN4IGx1c3RyZSBkZWZhdWx0cyxfbmV0ZGV2LGZsb2NrIDAgMCIgPj4gL2V0Yy9mc3RhYgplY2hvICJmcy0wY2RjNGY4Mjg3MzUxY2QwZi5mc3gudXMtZWFzdC0xLmFtYXpvbmF3cy5jb21AdGNwOi9zNXJwemJ1diAvZnN4LXJhdyBsdXN0cmUgZGVmYXVsdHMsX25ldGRldixmbG9jayAwIDAiID4+IC9ldGMvZnN0YWIKCiMgVmVyaWZ5IG1vdW50cwpkZiAtaCAvZnN4CmRmIC1oIC9mc3gtcmF3CkVPRg==",
+            "vpc_security_group_ids": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_fsx_lustre_file_system.checkpoints",
+            "aws_fsx_lustre_file_system.raw_data",
+            "aws_s3_bucket.checkpoints",
+            "aws_s3_bucket.raw_data",
+            "aws_security_group.batch_compute",
+            "aws_security_group.fsx_lustre",
+            "data.aws_caller_identity.current",
+            "module.vpc.aws_subnet.private",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "checkpoints",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "acceleration_status": "",
+            "acl": null,
+            "arn": "arn:aws:s3:::model-checkpoints-093646564071-us-east-1",
+            "bucket": "model-checkpoints-093646564071-us-east-1",
+            "bucket_domain_name": "model-checkpoints-093646564071-us-east-1.s3.amazonaws.com",
+            "bucket_prefix": "",
+            "bucket_regional_domain_name": "model-checkpoints-093646564071-us-east-1.s3.us-east-1.amazonaws.com",
+            "cors_rule": [],
+            "force_destroy": false,
+            "grant": [
+              {
+                "id": "f699b515efcc331568513a8424feff5788a1262fa6e4b417322b84177baa48bc",
+                "permissions": [
+                  "FULL_CONTROL"
+                ],
+                "type": "CanonicalUser",
+                "uri": ""
+              }
+            ],
+            "hosted_zone_id": "Z3AQBSTGFYJSTF",
+            "id": "model-checkpoints-093646564071-us-east-1",
+            "lifecycle_rule": [],
+            "logging": [],
+            "object_lock_configuration": [],
+            "object_lock_enabled": false,
+            "policy": "",
+            "region": "us-east-1",
+            "replication_configuration": [],
+            "request_payer": "BucketOwner",
+            "server_side_encryption_configuration": [
+              {
+                "rule": [
+                  {
+                    "apply_server_side_encryption_by_default": [
+                      {
+                        "kms_master_key_id": "",
+                        "sse_algorithm": "AES256"
+                      }
+                    ],
+                    "bucket_key_enabled": false
+                  }
+                ]
+              }
+            ],
+            "tags": {
+              "Environment": "dev",
+              "Name": "Model Checkpoints",
+              "Project": "gpu-batch",
+              "Type": "Checkpoints"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "Model Checkpoints",
+              "Project": "gpu-batch",
+              "Type": "Checkpoints"
+            },
+            "timeouts": null,
+            "versioning": [
+              {
+                "enabled": false,
+                "mfa_delete": false
+              }
+            ],
+            "website": [],
+            "website_domain": null,
+            "website_endpoint": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjM2MDAwMDAwMDAwMDAsInJlYWQiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "data.aws_caller_identity.current"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "finished_data",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "acceleration_status": "",
+            "acl": null,
+            "arn": "arn:aws:s3:::data-finished-093646564071-us-east-1",
+            "bucket": "data-finished-093646564071-us-east-1",
+            "bucket_domain_name": "data-finished-093646564071-us-east-1.s3.amazonaws.com",
+            "bucket_prefix": "",
+            "bucket_regional_domain_name": "data-finished-093646564071-us-east-1.s3.us-east-1.amazonaws.com",
+            "cors_rule": [],
+            "force_destroy": false,
+            "grant": [
+              {
+                "id": "f699b515efcc331568513a8424feff5788a1262fa6e4b417322b84177baa48bc",
+                "permissions": [
+                  "FULL_CONTROL"
+                ],
+                "type": "CanonicalUser",
+                "uri": ""
+              }
+            ],
+            "hosted_zone_id": "Z3AQBSTGFYJSTF",
+            "id": "data-finished-093646564071-us-east-1",
+            "lifecycle_rule": [],
+            "logging": [],
+            "object_lock_configuration": [],
+            "object_lock_enabled": false,
+            "policy": "",
+            "region": "us-east-1",
+            "replication_configuration": [],
+            "request_payer": "BucketOwner",
+            "server_side_encryption_configuration": [
+              {
+                "rule": [
+                  {
+                    "apply_server_side_encryption_by_default": [
+                      {
+                        "kms_master_key_id": "",
+                        "sse_algorithm": "AES256"
+                      }
+                    ],
+                    "bucket_key_enabled": false
+                  }
+                ]
+              }
+            ],
+            "tags": {
+              "Environment": "dev",
+              "Name": "Finished Data Bucket",
+              "Project": "gpu-batch",
+              "Type": "Output"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "Finished Data Bucket",
+              "Project": "gpu-batch",
+              "Type": "Output"
+            },
+            "timeouts": null,
+            "versioning": [
+              {
+                "enabled": false,
+                "mfa_delete": false
+              }
+            ],
+            "website": [],
+            "website_domain": null,
+            "website_endpoint": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjM2MDAwMDAwMDAwMDAsInJlYWQiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "data.aws_caller_identity.current"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "raw_data",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "acceleration_status": "",
+            "acl": null,
+            "arn": "arn:aws:s3:::data-raw-093646564071-us-east-1",
+            "bucket": "data-raw-093646564071-us-east-1",
+            "bucket_domain_name": "data-raw-093646564071-us-east-1.s3.amazonaws.com",
+            "bucket_prefix": "",
+            "bucket_regional_domain_name": "data-raw-093646564071-us-east-1.s3.us-east-1.amazonaws.com",
+            "cors_rule": [],
+            "force_destroy": false,
+            "grant": [
+              {
+                "id": "f699b515efcc331568513a8424feff5788a1262fa6e4b417322b84177baa48bc",
+                "permissions": [
+                  "FULL_CONTROL"
+                ],
+                "type": "CanonicalUser",
+                "uri": ""
+              }
+            ],
+            "hosted_zone_id": "Z3AQBSTGFYJSTF",
+            "id": "data-raw-093646564071-us-east-1",
+            "lifecycle_rule": [],
+            "logging": [],
+            "object_lock_configuration": [],
+            "object_lock_enabled": false,
+            "policy": "",
+            "region": "us-east-1",
+            "replication_configuration": [],
+            "request_payer": "BucketOwner",
+            "server_side_encryption_configuration": [
+              {
+                "rule": [
+                  {
+                    "apply_server_side_encryption_by_default": [
+                      {
+                        "kms_master_key_id": "",
+                        "sse_algorithm": "AES256"
+                      }
+                    ],
+                    "bucket_key_enabled": false
+                  }
+                ]
+              }
+            ],
+            "tags": {
+              "Environment": "dev",
+              "Name": "Raw Data Bucket",
+              "Project": "gpu-batch",
+              "Type": "Input"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "Raw Data Bucket",
+              "Project": "gpu-batch",
+              "Type": "Input"
+            },
+            "timeouts": null,
+            "versioning": [
+              {
+                "enabled": false,
+                "mfa_delete": false
+              }
+            ],
+            "website": [],
+            "website_domain": null,
+            "website_endpoint": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjM2MDAwMDAwMDAwMDAsInJlYWQiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "data.aws_caller_identity.current"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_s3_bucket_ownership_controls",
+      "name": "checkpoints",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "bucket": "model-checkpoints-093646564071-us-east-1",
+            "id": "model-checkpoints-093646564071-us-east-1",
+            "rule": [
+              {
+                "object_ownership": "BucketOwnerEnforced"
+              }
+            ]
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_s3_bucket.checkpoints",
+            "data.aws_caller_identity.current"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_s3_bucket_ownership_controls",
+      "name": "finished_data",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "bucket": "data-finished-093646564071-us-east-1",
+            "id": "data-finished-093646564071-us-east-1",
+            "rule": [
+              {
+                "object_ownership": "BucketOwnerEnforced"
+              }
+            ]
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_s3_bucket.finished_data",
+            "data.aws_caller_identity.current"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_s3_bucket_ownership_controls",
+      "name": "raw_data",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "bucket": "data-raw-093646564071-us-east-1",
+            "id": "data-raw-093646564071-us-east-1",
+            "rule": [
+              {
+                "object_ownership": "BucketOwnerEnforced"
+              }
+            ]
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_s3_bucket.raw_data",
+            "data.aws_caller_identity.current"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_s3_bucket_versioning",
+      "name": "checkpoints",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "bucket": "model-checkpoints-093646564071-us-east-1",
+            "expected_bucket_owner": "",
+            "id": "model-checkpoints-093646564071-us-east-1",
+            "mfa": null,
+            "versioning_configuration": [
+              {
+                "mfa_delete": "",
+                "status": "Enabled"
+              }
+            ]
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_s3_bucket.checkpoints",
+            "data.aws_caller_identity.current"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "batch_compute",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:security-group/sg-03f4b2ef35a2c69c3",
+            "description": "Security group for Batch compute instances",
+            "egress": [
+              {
+                "cidr_blocks": [
+                  "0.0.0.0/0"
+                ],
+                "description": "",
+                "from_port": 0,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "-1",
+                "security_groups": [],
+                "self": false,
+                "to_port": 0
+              }
+            ],
+            "id": "sg-03f4b2ef35a2c69c3",
+            "ingress": [],
+            "name": "gpu-batch-batch-2025111216365953390000000c",
+            "name_prefix": "gpu-batch-batch-",
+            "owner_id": "093646564071",
+            "revoke_rules_on_delete": false,
+            "tags": {
+              "Environment": "dev",
+              "Name": "gpu-batch-batch-compute-sg",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-batch-compute-sg",
+              "Project": "gpu-batch"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6OTAwMDAwMDAwMDAwfSwic2NoZW1hX3ZlcnNpb24iOiIxIn0=",
+          "dependencies": [
+            "module.vpc.aws_vpc.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "data_ops_ui",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:security-group/sg-033ae525c0cc50a35",
+            "description": "Security group for data-ops-ui service",
+            "egress": [
+              {
+                "cidr_blocks": [
+                  "0.0.0.0/0"
+                ],
+                "description": "",
+                "from_port": 0,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "-1",
+                "security_groups": [],
+                "self": false,
+                "to_port": 0
+              }
+            ],
+            "id": "sg-033ae525c0cc50a35",
+            "ingress": [
+              {
+                "cidr_blocks": [
+                  "0.0.0.0/0"
+                ],
+                "description": "",
+                "from_port": 8501,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "tcp",
+                "security_groups": [],
+                "self": false,
+                "to_port": 8501
+              }
+            ],
+            "name": "gpu-batch-data-ops-ui-2025111216365898030000000b",
+            "name_prefix": "gpu-batch-data-ops-ui-",
+            "owner_id": "093646564071",
+            "revoke_rules_on_delete": false,
+            "tags": {
+              "Environment": "dev",
+              "Name": "gpu-batch-data-ops-ui-sg",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-data-ops-ui-sg",
+              "Project": "gpu-batch"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6OTAwMDAwMDAwMDAwfSwic2NoZW1hX3ZlcnNpb24iOiIxIn0=",
+          "dependencies": [
+            "module.vpc.aws_vpc.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "fsx_lustre",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:security-group/sg-0af1eb053cd9d5b23",
+            "description": "Security group for FSx Lustre",
+            "egress": [
+              {
+                "cidr_blocks": [
+                  "0.0.0.0/0"
+                ],
+                "description": "",
+                "from_port": 0,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "-1",
+                "security_groups": [],
+                "self": false,
+                "to_port": 0
+              }
+            ],
+            "id": "sg-0af1eb053cd9d5b23",
+            "ingress": [
+              {
+                "cidr_blocks": [],
+                "description": "",
+                "from_port": 1018,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "tcp",
+                "security_groups": [
+                  "sg-03f4b2ef35a2c69c3"
+                ],
+                "self": false,
+                "to_port": 1023
+              },
+              {
+                "cidr_blocks": [],
+                "description": "",
+                "from_port": 988,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "tcp",
+                "security_groups": [
+                  "sg-03f4b2ef35a2c69c3"
+                ],
+                "self": false,
+                "to_port": 988
+              }
+            ],
+            "name": "gpu-batch-fsx-2025111216370193430000000f",
+            "name_prefix": "gpu-batch-fsx-",
+            "owner_id": "093646564071",
+            "revoke_rules_on_delete": false,
+            "tags": {
+              "Environment": "dev",
+              "Name": "gpu-batch-fsx-sg",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-fsx-sg",
+              "Project": "gpu-batch"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6OTAwMDAwMDAwMDAwfSwic2NoZW1hX3ZlcnNpb24iOiIxIn0=",
+          "dependencies": [
+            "aws_security_group.batch_compute",
+            "module.vpc.aws_vpc.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_security_group_rule",
+      "name": "fsx_self_1018_1023",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 2,
+          "attributes": {
+            "cidr_blocks": null,
+            "description": null,
+            "from_port": 1018,
+            "id": "sgrule-2444541007",
+            "ipv6_cidr_blocks": null,
+            "prefix_list_ids": null,
+            "protocol": "tcp",
+            "security_group_id": "sg-0af1eb053cd9d5b23",
+            "security_group_rule_id": "sgr-0ca0132d605b2e708",
+            "self": false,
+            "source_security_group_id": "sg-0af1eb053cd9d5b23",
+            "timeouts": null,
+            "to_port": 1023,
+            "type": "ingress"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDB9LCJzY2hlbWFfdmVyc2lvbiI6IjIifQ==",
+          "dependencies": [
+            "aws_security_group.batch_compute",
+            "aws_security_group.fsx_lustre",
+            "module.vpc.aws_vpc.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_security_group_rule",
+      "name": "fsx_self_988",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 2,
+          "attributes": {
+            "cidr_blocks": null,
+            "description": null,
+            "from_port": 988,
+            "id": "sgrule-3455918018",
+            "ipv6_cidr_blocks": null,
+            "prefix_list_ids": null,
+            "protocol": "tcp",
+            "security_group_id": "sg-0af1eb053cd9d5b23",
+            "security_group_rule_id": "sgr-0058740e2740ef275",
+            "self": false,
+            "source_security_group_id": "sg-0af1eb053cd9d5b23",
+            "timeouts": null,
+            "to_port": 988,
+            "type": "ingress"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDB9LCJzY2hlbWFfdmVyc2lvbiI6IjIifQ==",
+          "dependencies": [
+            "aws_security_group.batch_compute",
+            "aws_security_group.fsx_lustre",
+            "module.vpc.aws_vpc.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_sns_topic",
+      "name": "batch_failures",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "application_failure_feedback_role_arn": "",
+            "application_success_feedback_role_arn": "",
+            "application_success_feedback_sample_rate": 0,
+            "archive_policy": "",
+            "arn": "arn:aws:sns:us-east-1:093646564071:gpu-batch-batch-failures",
+            "beginning_archive_time": "",
+            "content_based_deduplication": false,
+            "delivery_policy": "",
+            "display_name": "",
+            "fifo_throughput_scope": "",
+            "fifo_topic": false,
+            "firehose_failure_feedback_role_arn": "",
+            "firehose_success_feedback_role_arn": "",
+            "firehose_success_feedback_sample_rate": 0,
+            "http_failure_feedback_role_arn": "",
+            "http_success_feedback_role_arn": "",
+            "http_success_feedback_sample_rate": 0,
+            "id": "arn:aws:sns:us-east-1:093646564071:gpu-batch-batch-failures",
+            "kms_master_key_id": "",
+            "lambda_failure_feedback_role_arn": "",
+            "lambda_success_feedback_role_arn": "",
+            "lambda_success_feedback_sample_rate": 0,
+            "name": "gpu-batch-batch-failures",
+            "name_prefix": "",
+            "owner": "093646564071",
+            "policy": "{\"Id\":\"__default_policy_ID\",\"Statement\":[{\"Action\":[\"SNS:GetTopicAttributes\",\"SNS:SetTopicAttributes\",\"SNS:AddPermission\",\"SNS:RemovePermission\",\"SNS:DeleteTopic\",\"SNS:Subscribe\",\"SNS:ListSubscriptionsByTopic\",\"SNS:Publish\"],\"Condition\":{\"StringEquals\":{\"AWS:SourceOwner\":\"093646564071\"}},\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"*\"},\"Resource\":\"arn:aws:sns:us-east-1:093646564071:gpu-batch-batch-failures\",\"Sid\":\"__default_statement_ID\"}],\"Version\":\"2008-10-17\"}",
+            "signature_version": 0,
+            "sqs_failure_feedback_role_arn": "",
+            "sqs_success_feedback_role_arn": "",
+            "sqs_success_feedback_sample_rate": 0,
+            "tags": {
+              "Environment": "dev",
+              "Name": "Batch Job Failures",
+              "Project": "gpu-batch"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "Batch Job Failures",
+              "Project": "gpu-batch"
+            },
+            "tracing_config": ""
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_sns_topic_policy",
+      "name": "batch_failures",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:sns:us-east-1:093646564071:gpu-batch-batch-failures",
+            "id": "arn:aws:sns:us-east-1:093646564071:gpu-batch-batch-failures",
+            "owner": "093646564071",
+            "policy": "{\"Statement\":[{\"Action\":\"SNS:Publish\",\"Condition\":{\"StringEquals\":{\"aws:SourceArn\":\"arn:aws:events:us-east-1:093646564071:rule/gpu-batch-batch-failures\"}},\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Resource\":\"arn:aws:sns:us-east-1:093646564071:gpu-batch-batch-failures\"}],\"Version\":\"2012-10-17\"}"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_batch_compute_environment.gpu_spot",
+            "aws_batch_job_queue.gpu_queue",
+            "aws_cloudwatch_event_rule.batch_failures",
+            "aws_fsx_lustre_file_system.checkpoints",
+            "aws_fsx_lustre_file_system.raw_data",
+            "aws_iam_instance_profile.batch_instance",
+            "aws_iam_role.batch_instance",
+            "aws_iam_role.batch_service",
+            "aws_iam_role.spot_fleet",
+            "aws_launch_template.batch_gpu",
+            "aws_s3_bucket.checkpoints",
+            "aws_s3_bucket.raw_data",
+            "aws_security_group.batch_compute",
+            "aws_security_group.fsx_lustre",
+            "aws_sns_topic.batch_failures",
+            "data.aws_caller_identity.current",
+            "module.vpc.aws_subnet.private",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_sns_topic_subscription",
+      "name": "batch_failures_email",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:sns:us-east-1:093646564071:gpu-batch-batch-failures:23a2bc83-0d22-4a3a-86e0-f77679b5cdc5",
+            "confirmation_timeout_in_minutes": 1,
+            "confirmation_was_authenticated": false,
+            "delivery_policy": "",
+            "endpoint": "jrobert@andrew.cmu.edu",
+            "endpoint_auto_confirms": false,
+            "filter_policy": "",
+            "filter_policy_scope": "",
+            "id": "arn:aws:sns:us-east-1:093646564071:gpu-batch-batch-failures:23a2bc83-0d22-4a3a-86e0-f77679b5cdc5",
+            "owner_id": "093646564071",
+            "pending_confirmation": true,
+            "protocol": "email",
+            "raw_message_delivery": false,
+            "redrive_policy": "",
+            "replay_policy": "",
+            "subscription_role_arn": "",
+            "topic_arn": "arn:aws:sns:us-east-1:093646564071:gpu-batch-batch-failures"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_sns_topic.batch_failures"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_default_network_acl",
+      "name": "this",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:network-acl/acl-003f2e76cf876cd53",
+            "default_network_acl_id": "acl-003f2e76cf876cd53",
+            "egress": [
+              {
+                "action": "allow",
+                "cidr_block": "",
+                "from_port": 0,
+                "icmp_code": null,
+                "icmp_type": null,
+                "ipv6_cidr_block": "::/0",
+                "protocol": "-1",
+                "rule_no": 101,
+                "to_port": 0
+              },
+              {
+                "action": "allow",
+                "cidr_block": "0.0.0.0/0",
+                "from_port": 0,
+                "icmp_code": null,
+                "icmp_type": null,
+                "ipv6_cidr_block": "",
+                "protocol": "-1",
+                "rule_no": 100,
+                "to_port": 0
+              }
+            ],
+            "id": "acl-003f2e76cf876cd53",
+            "ingress": [
+              {
+                "action": "allow",
+                "cidr_block": "",
+                "from_port": 0,
+                "icmp_code": null,
+                "icmp_type": null,
+                "ipv6_cidr_block": "::/0",
+                "protocol": "-1",
+                "rule_no": 101,
+                "to_port": 0
+              },
+              {
+                "action": "allow",
+                "cidr_block": "0.0.0.0/0",
+                "from_port": 0,
+                "icmp_code": null,
+                "icmp_type": null,
+                "ipv6_cidr_block": "",
+                "protocol": "-1",
+                "rule_no": 100,
+                "to_port": 0
+              }
+            ],
+            "owner_id": "093646564071",
+            "subnet_ids": [
+              "subnet-007edacc1d763da46",
+              "subnet-0684cfbd466bd450d",
+              "subnet-073b7eec843a54a6a",
+              "subnet-0d2ee8a569aa772f7"
+            ],
+            "tags": {
+              "Name": "gpu-batch-vpc-default"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc-default",
+              "Project": "GPU-Batch-Processing"
+            },
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "module.vpc.aws_vpc.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_default_route_table",
+      "name": "default",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:route-table/rtb-0757533fa76e63184",
+            "default_route_table_id": "rtb-0757533fa76e63184",
+            "id": "rtb-0757533fa76e63184",
+            "owner_id": "093646564071",
+            "propagating_vgws": null,
+            "route": [],
+            "tags": {
+              "Name": "gpu-batch-vpc-default"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc-default",
+              "Project": "GPU-Batch-Processing"
+            },
+            "timeouts": {
+              "create": "5m",
+              "update": "5m"
+            },
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsInVwZGF0ZSI6MzAwMDAwMDAwMDAwfX0=",
+          "dependencies": [
+            "module.vpc.aws_vpc.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_default_security_group",
+      "name": "this",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:security-group/sg-017a1039aab0d642f",
+            "description": "default VPC security group",
+            "egress": [],
+            "id": "sg-017a1039aab0d642f",
+            "ingress": [],
+            "name": "default",
+            "name_prefix": "",
+            "owner_id": "093646564071",
+            "revoke_rules_on_delete": false,
+            "tags": {
+              "Name": "gpu-batch-vpc-default"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc-default",
+              "Project": "GPU-Batch-Processing"
+            },
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjEifQ==",
+          "dependencies": [
+            "module.vpc.aws_vpc.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_eip",
+      "name": "nat",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "address": null,
+            "allocation_id": "eipalloc-06c36051f122c4927",
+            "arn": "arn:aws:ec2:us-east-1:093646564071:elastic-ip/eipalloc-06c36051f122c4927",
+            "associate_with_private_ip": null,
+            "association_id": "",
+            "carrier_ip": "",
+            "customer_owned_ip": "",
+            "customer_owned_ipv4_pool": "",
+            "domain": "vpc",
+            "id": "eipalloc-06c36051f122c4927",
+            "instance": "",
+            "ipam_pool_id": null,
+            "network_border_group": "us-east-1",
+            "network_interface": "",
+            "private_dns": null,
+            "private_ip": "",
+            "ptr_record": "",
+            "public_dns": "ec2-34-195-154-238.compute-1.amazonaws.com",
+            "public_ip": "34.195.154.238",
+            "public_ipv4_pool": "amazon",
+            "tags": {
+              "Name": "gpu-batch-vpc-us-east-1a"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc-us-east-1a",
+              "Project": "GPU-Batch-Processing"
+            },
+            "timeouts": null,
+            "vpc": true
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiZGVsZXRlIjoxODAwMDAwMDAwMDAsInJlYWQiOjkwMDAwMDAwMDAwMCwidXBkYXRlIjozMDAwMDAwMDAwMDB9fQ==",
+          "dependencies": [
+            "module.vpc.aws_internet_gateway.this",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_internet_gateway",
+      "name": "this",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:internet-gateway/igw-0bb013f94a410e1bc",
+            "id": "igw-0bb013f94a410e1bc",
+            "owner_id": "093646564071",
+            "tags": {
+              "Name": "gpu-batch-vpc"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc",
+              "Project": "GPU-Batch-Processing"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_nat_gateway",
+      "name": "this",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "allocation_id": "eipalloc-06c36051f122c4927",
+            "association_id": "eipassoc-0aa940697e02ed33f",
+            "connectivity_type": "public",
+            "id": "nat-0952d9c042be219f4",
+            "network_interface_id": "eni-0f4f80305c35ed42f",
+            "private_ip": "10.0.1.31",
+            "public_ip": "34.195.154.238",
+            "secondary_allocation_ids": null,
+            "secondary_private_ip_address_count": 0,
+            "secondary_private_ip_addresses": [],
+            "subnet_id": "subnet-0d2ee8a569aa772f7",
+            "tags": {
+              "Name": "gpu-batch-vpc-us-east-1a"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc-us-east-1a",
+              "Project": "GPU-Batch-Processing"
+            },
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6MTgwMDAwMDAwMDAwMCwidXBkYXRlIjo2MDAwMDAwMDAwMDB9fQ==",
+          "dependencies": [
+            "module.vpc.aws_eip.nat",
+            "module.vpc.aws_internet_gateway.this",
+            "module.vpc.aws_subnet.public",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_route",
+      "name": "private_nat_gateway",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "carrier_gateway_id": "",
+            "core_network_arn": "",
+            "destination_cidr_block": "0.0.0.0/0",
+            "destination_ipv6_cidr_block": "",
+            "destination_prefix_list_id": "",
+            "egress_only_gateway_id": "",
+            "gateway_id": "",
+            "id": "r-rtb-02e011f4eceede1ee1080289494",
+            "instance_id": "",
+            "instance_owner_id": "",
+            "local_gateway_id": "",
+            "nat_gateway_id": "nat-0952d9c042be219f4",
+            "network_interface_id": "",
+            "origin": "CreateRoute",
+            "route_table_id": "rtb-02e011f4eceede1ee",
+            "state": "active",
+            "timeouts": {
+              "create": "5m",
+              "delete": null,
+              "update": null
+            },
+            "transit_gateway_id": "",
+            "vpc_endpoint_id": "",
+            "vpc_peering_connection_id": ""
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "module.vpc.aws_eip.nat",
+            "module.vpc.aws_internet_gateway.this",
+            "module.vpc.aws_nat_gateway.this",
+            "module.vpc.aws_route_table.private",
+            "module.vpc.aws_subnet.public",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_route",
+      "name": "public_internet_gateway",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "carrier_gateway_id": "",
+            "core_network_arn": "",
+            "destination_cidr_block": "0.0.0.0/0",
+            "destination_ipv6_cidr_block": "",
+            "destination_prefix_list_id": "",
+            "egress_only_gateway_id": "",
+            "gateway_id": "igw-0bb013f94a410e1bc",
+            "id": "r-rtb-01958e41993bc77df1080289494",
+            "instance_id": "",
+            "instance_owner_id": "",
+            "local_gateway_id": "",
+            "nat_gateway_id": "",
+            "network_interface_id": "",
+            "origin": "CreateRoute",
+            "route_table_id": "rtb-01958e41993bc77df",
+            "state": "active",
+            "timeouts": {
+              "create": "5m",
+              "delete": null,
+              "update": null
+            },
+            "transit_gateway_id": "",
+            "vpc_endpoint_id": "",
+            "vpc_peering_connection_id": ""
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "module.vpc.aws_internet_gateway.this",
+            "module.vpc.aws_route_table.public",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_route_table",
+      "name": "private",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:route-table/rtb-02e011f4eceede1ee",
+            "id": "rtb-02e011f4eceede1ee",
+            "owner_id": "093646564071",
+            "propagating_vgws": [],
+            "route": [],
+            "tags": {
+              "Name": "gpu-batch-vpc-private"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc-private",
+              "Project": "GPU-Batch-Processing"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_route_table",
+      "name": "public",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:route-table/rtb-01958e41993bc77df",
+            "id": "rtb-01958e41993bc77df",
+            "owner_id": "093646564071",
+            "propagating_vgws": [],
+            "route": [],
+            "tags": {
+              "Name": "gpu-batch-vpc-public"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc-public",
+              "Project": "GPU-Batch-Processing"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_route_table_association",
+      "name": "private",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "gateway_id": "",
+            "id": "rtbassoc-0d896fc824cb5a567",
+            "route_table_id": "rtb-02e011f4eceede1ee",
+            "subnet_id": "subnet-007edacc1d763da46",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "module.vpc.aws_route_table.private",
+            "module.vpc.aws_subnet.private",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        },
+        {
+          "index_key": 1,
+          "schema_version": 0,
+          "attributes": {
+            "gateway_id": "",
+            "id": "rtbassoc-03740bf2c6230bfae",
+            "route_table_id": "rtb-02e011f4eceede1ee",
+            "subnet_id": "subnet-073b7eec843a54a6a",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "module.vpc.aws_route_table.private",
+            "module.vpc.aws_subnet.private",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_route_table_association",
+      "name": "public",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "gateway_id": "",
+            "id": "rtbassoc-0f43a1661f31d37db",
+            "route_table_id": "rtb-01958e41993bc77df",
+            "subnet_id": "subnet-0d2ee8a569aa772f7",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "module.vpc.aws_route_table.public",
+            "module.vpc.aws_subnet.public",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        },
+        {
+          "index_key": 1,
+          "schema_version": 0,
+          "attributes": {
+            "gateway_id": "",
+            "id": "rtbassoc-0fa77cd8c01ac3aab",
+            "route_table_id": "rtb-01958e41993bc77df",
+            "subnet_id": "subnet-0684cfbd466bd450d",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "module.vpc.aws_route_table.public",
+            "module.vpc.aws_subnet.public",
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "private",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:subnet/subnet-007edacc1d763da46",
+            "assign_ipv6_address_on_creation": false,
+            "availability_zone": "us-east-1a",
+            "availability_zone_id": "use1-az1",
+            "cidr_block": "10.0.11.0/24",
+            "customer_owned_ipv4_pool": "",
+            "enable_dns64": false,
+            "enable_lni_at_device_index": 0,
+            "enable_resource_name_dns_a_record_on_launch": false,
+            "enable_resource_name_dns_aaaa_record_on_launch": false,
+            "id": "subnet-007edacc1d763da46",
+            "ipv6_cidr_block": "",
+            "ipv6_cidr_block_association_id": "",
+            "ipv6_native": false,
+            "map_customer_owned_ip_on_launch": false,
+            "map_public_ip_on_launch": false,
+            "outpost_arn": "",
+            "owner_id": "093646564071",
+            "private_dns_hostname_type_on_launch": "ip-name",
+            "tags": {
+              "Name": "gpu-batch-vpc-private-us-east-1a"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc-private-us-east-1a",
+              "Project": "GPU-Batch-Processing"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6MTIwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        },
+        {
+          "index_key": 1,
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:subnet/subnet-073b7eec843a54a6a",
+            "assign_ipv6_address_on_creation": false,
+            "availability_zone": "us-east-1b",
+            "availability_zone_id": "use1-az2",
+            "cidr_block": "10.0.12.0/24",
+            "customer_owned_ipv4_pool": "",
+            "enable_dns64": false,
+            "enable_lni_at_device_index": 0,
+            "enable_resource_name_dns_a_record_on_launch": false,
+            "enable_resource_name_dns_aaaa_record_on_launch": false,
+            "id": "subnet-073b7eec843a54a6a",
+            "ipv6_cidr_block": "",
+            "ipv6_cidr_block_association_id": "",
+            "ipv6_native": false,
+            "map_customer_owned_ip_on_launch": false,
+            "map_public_ip_on_launch": false,
+            "outpost_arn": "",
+            "owner_id": "093646564071",
+            "private_dns_hostname_type_on_launch": "ip-name",
+            "tags": {
+              "Name": "gpu-batch-vpc-private-us-east-1b"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc-private-us-east-1b",
+              "Project": "GPU-Batch-Processing"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6MTIwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "public",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:subnet/subnet-0d2ee8a569aa772f7",
+            "assign_ipv6_address_on_creation": false,
+            "availability_zone": "us-east-1a",
+            "availability_zone_id": "use1-az1",
+            "cidr_block": "10.0.1.0/24",
+            "customer_owned_ipv4_pool": "",
+            "enable_dns64": false,
+            "enable_lni_at_device_index": 0,
+            "enable_resource_name_dns_a_record_on_launch": false,
+            "enable_resource_name_dns_aaaa_record_on_launch": false,
+            "id": "subnet-0d2ee8a569aa772f7",
+            "ipv6_cidr_block": "",
+            "ipv6_cidr_block_association_id": "",
+            "ipv6_native": false,
+            "map_customer_owned_ip_on_launch": false,
+            "map_public_ip_on_launch": false,
+            "outpost_arn": "",
+            "owner_id": "093646564071",
+            "private_dns_hostname_type_on_launch": "ip-name",
+            "tags": {
+              "Name": "gpu-batch-vpc-public-us-east-1a"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc-public-us-east-1a",
+              "Project": "GPU-Batch-Processing"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6MTIwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        },
+        {
+          "index_key": 1,
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:subnet/subnet-0684cfbd466bd450d",
+            "assign_ipv6_address_on_creation": false,
+            "availability_zone": "us-east-1b",
+            "availability_zone_id": "use1-az2",
+            "cidr_block": "10.0.2.0/24",
+            "customer_owned_ipv4_pool": "",
+            "enable_dns64": false,
+            "enable_lni_at_device_index": 0,
+            "enable_resource_name_dns_a_record_on_launch": false,
+            "enable_resource_name_dns_aaaa_record_on_launch": false,
+            "id": "subnet-0684cfbd466bd450d",
+            "ipv6_cidr_block": "",
+            "ipv6_cidr_block_association_id": "",
+            "ipv6_native": false,
+            "map_customer_owned_ip_on_launch": false,
+            "map_public_ip_on_launch": false,
+            "outpost_arn": "",
+            "owner_id": "093646564071",
+            "private_dns_hostname_type_on_launch": "ip-name",
+            "tags": {
+              "Name": "gpu-batch-vpc-public-us-east-1b"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc-public-us-east-1b",
+              "Project": "GPU-Batch-Processing"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-0600548f19dbecfd0"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6MTIwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "module.vpc.aws_vpc.this",
+            "module.vpc.aws_vpc_ipv4_cidr_block_association.this"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "module.vpc",
+      "mode": "managed",
+      "type": "aws_vpc",
+      "name": "this",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:093646564071:vpc/vpc-0600548f19dbecfd0",
+            "assign_generated_ipv6_cidr_block": false,
+            "cidr_block": "10.0.0.0/16",
+            "default_network_acl_id": "acl-003f2e76cf876cd53",
+            "default_route_table_id": "rtb-0757533fa76e63184",
+            "default_security_group_id": "sg-017a1039aab0d642f",
+            "dhcp_options_id": "dopt-0be441488ccbf679d",
+            "enable_dns_hostnames": true,
+            "enable_dns_support": true,
+            "enable_network_address_usage_metrics": false,
+            "id": "vpc-0600548f19dbecfd0",
+            "instance_tenancy": "default",
+            "ipv4_ipam_pool_id": null,
+            "ipv4_netmask_length": null,
+            "ipv6_association_id": "",
+            "ipv6_cidr_block": "",
+            "ipv6_cidr_block_network_border_group": "",
+            "ipv6_ipam_pool_id": "",
+            "ipv6_netmask_length": 0,
+            "main_route_table_id": "rtb-0757533fa76e63184",
+            "owner_id": "093646564071",
+            "tags": {
+              "Name": "gpu-batch-vpc"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "gpu-batch-vpc",
+              "Project": "GPU-Batch-Processing"
+            }
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjEifQ=="
+        }
+      ]
+    }
+  ],
+  "check_results": [
+    {
+      "object_kind": "var",
+      "config_addr": "var.fsx_throughput",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.fsx_throughput",
+          "status": "pass"
+        }
+      ]
+    }
+  ]
+}

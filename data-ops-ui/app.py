@@ -21,7 +21,20 @@ def _bootstrap_secrets():
     # Check if already set via ECS secrets injection
     existing_key = os.getenv("PREFECT_API_KEY")
     if existing_key:
-        key_preview = existing_key[:8] + "..." if len(existing_key) > 8 else "***"
+        # Handle potential JSON injection from ECS (full secret value)
+        try:
+            secret_json = json.loads(existing_key)
+            # If JSON, look for common key names
+            val = secret_json.get("PREFECT_API_KEY") or secret_json.get("api_key") or secret_json.get("key") or secret_json.get("PrefectApiKey")
+            if val:
+                existing_key = val
+        except (json.JSONDecodeError, TypeError):
+            pass  # Not JSON, assume plain string
+
+        # Ensure no whitespace from secret copy-paste
+        final_key = existing_key.strip()
+        os.environ["PREFECT_API_KEY"] = final_key
+        key_preview = final_key[:8] + "..." if len(final_key) > 8 else "***"
         print(f"[bootstrap] PREFECT_API_KEY already set (starts with: {key_preview})")
     else:
         secret_name = os.getenv("PREFECT_SECRET_NAME", "PrefectApiKey")
@@ -37,9 +50,14 @@ def _bootstrap_secrets():
                 api_key = secret_json.get("PREFECT_API_KEY") or secret_json.get("api_key") or secret_json.get("key") or secret_value
             except json.JSONDecodeError:
                 api_key = secret_value  # Plain string secret
-            os.environ["PREFECT_API_KEY"] = api_key
-            key_preview = api_key[:8] + "..." if len(api_key) > 8 else "***"
-            print(f"[bootstrap] Loaded PREFECT_API_KEY from Secrets Manager (starts with: {key_preview})")
+            
+            if api_key:
+                os.environ["PREFECT_API_KEY"] = api_key.strip()
+                key_preview = api_key[:8] + "..." if len(api_key) > 8 else "***"
+                print(f"[bootstrap] Loaded PREFECT_API_KEY from Secrets Manager (starts with: {key_preview})")
+            else:
+                print(f"[bootstrap] WARNING: Secret '{secret_name}' retrieved but appears empty.")
+
         except ClientError as e:
             print(f"[bootstrap] ERROR: Could not fetch Prefect secret '{secret_name}': {e}")
         except Exception as e:
@@ -672,8 +690,32 @@ with st.container(border=True):
             except Exception as e:
                 st.error(f"Failed to prepare direct upload form: {e}")
     else:
-        st.markdown("**Existing key prefix to list**")
-        prefix = ui.input(default_value="", key="list_prefix")
+        st.markdown("**Select Folder (Prefix)**")
+        try:
+            # List top-level prefixes (folders) from the bucket
+            prefixes = list_s3_prefixes(RAW_BUCKET)
+        except Exception as e:
+            st.warning(f"Could not list folders: {e}")
+            prefixes = []
+        
+        # Add a manual option
+        folder_opts = ["(Root / Manual)"] + prefixes
+        
+        # Default to 'replica' if it exists (requested behavior)
+        def_val = "replica" if "replica" in prefixes else folder_opts[0]
+        def_index = folder_opts.index(def_val)
+        
+        # Allow user to select folder
+        # Fallback to standard st.selectbox to ensure 'index' parameter support
+        sel_folder = st.selectbox("Select Folder (Prefix)", options=folder_opts, index=def_index, key="folder_select")
+        
+        if sel_folder == "(Root / Manual)":
+            prefix = ui.input(default_value="", placeholder="prefix/", key="list_prefix")
+        else:
+            # Append slash to list contents
+            prefix = f"{sel_folder}/"
+            st.caption(f"Browsing: {prefix}")
+
         try:
             keys = list_s3_objects(RAW_BUCKET, prefix)
         except ClientError as e:

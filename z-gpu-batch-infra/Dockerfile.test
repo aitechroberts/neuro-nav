@@ -16,4 +16,3 @@ RUN printf '#!/bin/sh\nset -e\n\necho "[gpu-jobs-test] starting..."\nprintenv | 
 WORKDIR /app
 CMD ["/entrypoint.sh"]
 
-

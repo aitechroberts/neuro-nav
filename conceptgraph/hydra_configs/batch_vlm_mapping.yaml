@@ -1,0 +1,54 @@
+defaults:
+  - base
+  - base_mapping
+  - replica
+  # - record3d
+  - sam
+  - classes
+  - logging_level
+  - _self_
+
+# Detection experiment and mapping experiment labels for batch runs
+detections_exp_suffix: s_detections_batch   # helpful label to identify your detections
+force_detection: !!bool True
+save_detections: !!bool True
+
+# Enable VLM edges/captions by default for batch mapping.
+# You can override this at runtime with make_edges=false if desired.
+make_edges: !!bool True
+
+# Frame sampling defaults (overridable via START/END/STRIDE envs or CLI)
+stride: 10
+exp_suffix: batch_vlm                     # helpful label to identify your mapping experiment
+
+# Batch-friendly runtime flags
+save_video: !!bool False
+save_objects_all_frames: !!bool False
+
+downsample_voxel_size: 0.01
+obj_pcd_max_points: 5000
+
+debug_render: !!bool False
+vis_render: !!bool False
+
+# Post-processing intervals & merging (copied from rerun_realtime_mapping)
+denoise_interval: 5           # Run DBSCAN every k frame. This operation is heavy
+filter_interval: 5            # Filter objects that have too few associations or are too small
+merge_interval: 5             # Merge objects based on geometric and semantic similarity
+run_denoise_final_frame: !!bool True
+run_filter_final_frame: !!bool True
+run_merge_final_frame: !!bool True
+
+dbscan_remove_noise: !!bool True
+dbscan_eps: 0.1
+dbscan_min_points: 10
+
+# Selection criteria of the fused object point cloud
+obj_min_points: 0
+obj_min_detections: 1
+
+# ReRun is disabled for batch runs
+use_rerun: !!bool False
+save_rerun: !!bool False
+
+
