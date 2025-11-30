@@ -1,0 +1,11 @@
+python scripts/run_replica_slam_rerun.py \
+  --dataset_root ~/cmu-grad/neuro-data/replica \
+  --dataset_config dataset/dataconfigs/replica/replica.yaml \
+  --scene_id apartment_1 \
+  --start 0 \
+  --end -1 \
+  --stride 1 \
+  --image_height 480 \
+  --image_width 640 \
+  --device cuda:0 \
+  --log_every 50

@@ -1,5 +1,7 @@
 ## Mapping Workflow (based on `conceptgraph/slam/batch_test_local.py`)
 
+run_slam_rgb.py → generate_gsa_results.py → cfslam_pipeline_batch.py
+
 ### Replica Scenes:
 hotel0
 room0

@@ -989,9 +989,10 @@ resource "aws_ecs_task_definition" "data_ui" {
     ]
 
     # Inject Prefect API key from Secrets Manager
+    # Using :PREFECT_API_KEY:: suffix extracts just that key from the JSON secret
     secrets = [{
       name      = "PREFECT_API_KEY"
-      valueFrom = data.aws_secretsmanager_secret.prefect_api_key.arn
+      valueFrom = "${data.aws_secretsmanager_secret.prefect_api_key.arn}:PREFECT_API_KEY::"
     }]
 
     logConfiguration = {

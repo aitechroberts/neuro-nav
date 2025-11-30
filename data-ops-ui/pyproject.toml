@@ -9,4 +9,5 @@ dependencies = [
     "prefect>=3.5.0",
     "streamlit>=1.51.0",
     "streamlit-shadcn-ui>=0.1.19",
+    "toml>=0.10.2",
 ]

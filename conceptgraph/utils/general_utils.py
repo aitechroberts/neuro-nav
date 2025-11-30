@@ -384,6 +384,16 @@ def filter_detections(
         if keep:
             filtered_detections.append(current_det)
 
+    if not filtered_detections:
+        # Nothing survived filtering for this frame: return empty detections and no labels
+        empty_dets = sv.Detections(
+            class_id=np.array([], dtype=np.int64),
+            confidence=np.array([], dtype=np.float32),
+            xyxy=np.zeros((0, 4), dtype=np.float32),
+            mask=np.zeros((0, *detections.mask.shape[1:]), dtype=bool),
+        )
+        return empty_dets, []
+        
     # Unzip the filtered results
     confidences, class_ids, xyxy, masks, indices = zip(*filtered_detections)
     filtered_labels = [given_labels[i] for i in indices]

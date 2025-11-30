@@ -7,6 +7,36 @@ from typing import List, Optional
 # SECRETS BOOTSTRAP (must run BEFORE importing Prefect)
 # Fetch PREFECT_API_KEY from AWS Secrets Manager and set as env var
 # =============================================================================
+def _extract_api_key_from_json(secret_json: dict) -> Optional[str]:
+    """
+    Extract API key from a JSON secret dict.
+    Tries common key names used by Prefect secrets.
+    """
+    # List of possible key names (in priority order)
+    key_names = ["PREFECT_API_KEY", "PrefectApiKey", "prefect_api_key", "api_key", "key"]
+    for key_name in key_names:
+        val = secret_json.get(key_name)
+        if val and isinstance(val, str) and val.strip():
+            print(f"[bootstrap] Found API key under JSON key: '{key_name}'")
+            return val.strip()
+    return None
+
+
+def _validate_prefect_key(key: str) -> bool:
+    """
+    Basic validation of Prefect API key format.
+    Prefect Cloud keys start with 'pnu_' (personal) or 'psk_' (service account).
+    """
+    if not key:
+        return False
+    # Check for valid prefixes
+    valid_prefixes = ("pnu_", "psk_", "pap_")  # personal, service, API key
+    if not any(key.startswith(p) for p in valid_prefixes):
+        print(f"[bootstrap] WARNING: Key doesn't start with expected prefix (pnu_/psk_/pap_), got: {key[:4]}...")
+        # Don't fail - might be a different key format
+    return True
+
+
 def _bootstrap_secrets():
     """
     Fetch secrets from AWS Secrets Manager and set as environment variables.
@@ -21,21 +51,39 @@ def _bootstrap_secrets():
     # Check if already set via ECS secrets injection
     existing_key = os.getenv("PREFECT_API_KEY")
     if existing_key:
+        original_len = len(existing_key)
+        print(f"[bootstrap] PREFECT_API_KEY env var found (length={original_len})")
+        
+        # Debug: show what we received (safely)
+        is_json_like = existing_key.strip().startswith("{")
+        print(f"[bootstrap] Value looks like JSON: {is_json_like}")
+        
         # Handle potential JSON injection from ECS (full secret value)
-        try:
-            secret_json = json.loads(existing_key)
-            # If JSON, look for common key names
-            val = secret_json.get("PREFECT_API_KEY") or secret_json.get("api_key") or secret_json.get("key") or secret_json.get("PrefectApiKey")
-            if val:
-                existing_key = val
-        except (json.JSONDecodeError, TypeError):
-            pass  # Not JSON, assume plain string
+        final_key = None
+        if is_json_like:
+            try:
+                secret_json = json.loads(existing_key)
+                print(f"[bootstrap] Parsed as JSON with keys: {list(secret_json.keys())}")
+                final_key = _extract_api_key_from_json(secret_json)
+                if not final_key:
+                    print(f"[bootstrap] ERROR: JSON parsed but no recognized API key field found!")
+                    print(f"[bootstrap] Available keys: {list(secret_json.keys())}")
+            except (json.JSONDecodeError, TypeError) as e:
+                print(f"[bootstrap] Looks like JSON but failed to parse: {e}")
+                # Fall through to treat as plain string
+        
+        # If not JSON or JSON extraction failed, treat as plain string
+        if final_key is None:
+            final_key = existing_key.strip()
+            print(f"[bootstrap] Using value as plain string")
 
-        # Ensure no whitespace from secret copy-paste
-        final_key = existing_key.strip()
-        os.environ["PREFECT_API_KEY"] = final_key
-        key_preview = final_key[:8] + "..." if len(final_key) > 8 else "***"
-        print(f"[bootstrap] PREFECT_API_KEY already set (starts with: {key_preview})")
+        # Validate and set
+        if _validate_prefect_key(final_key):
+            os.environ["PREFECT_API_KEY"] = final_key
+            key_preview = final_key[:12] + "..." if len(final_key) > 12 else "***"
+            print(f"[bootstrap] PREFECT_API_KEY set (starts with: {key_preview}, length={len(final_key)})")
+        else:
+            print(f"[bootstrap] ERROR: Extracted key appears invalid or empty!")
     else:
         secret_name = os.getenv("PREFECT_SECRET_NAME", "PrefectApiKey")
         print(f"[bootstrap] PREFECT_API_KEY not set, fetching from Secrets Manager ({secret_name})...")
@@ -43,29 +91,43 @@ def _bootstrap_secrets():
             sm = boto3.client("secretsmanager", region_name=region)
             response = sm.get_secret_value(SecretId=secret_name)
             secret_value = response.get("SecretString", "")
-            # Handle both plain string and JSON formats
-            try:
-                secret_json = json.loads(secret_value)
-                # If JSON, look for common key names
-                api_key = secret_json.get("PREFECT_API_KEY") or secret_json.get("api_key") or secret_json.get("key") or secret_value
-            except json.JSONDecodeError:
-                api_key = secret_value  # Plain string secret
             
-            if api_key:
-                os.environ["PREFECT_API_KEY"] = api_key.strip()
-                key_preview = api_key[:8] + "..." if len(api_key) > 8 else "***"
-                print(f"[bootstrap] Loaded PREFECT_API_KEY from Secrets Manager (starts with: {key_preview})")
+            print(f"[bootstrap] Retrieved secret (length={len(secret_value)})")
+            
+            api_key = None
+            # Handle both plain string and JSON formats
+            if secret_value.strip().startswith("{"):
+                try:
+                    secret_json = json.loads(secret_value)
+                    print(f"[bootstrap] Secret is JSON with keys: {list(secret_json.keys())}")
+                    api_key = _extract_api_key_from_json(secret_json)
+                    if not api_key:
+                        print(f"[bootstrap] ERROR: JSON secret has no recognized API key field!")
+                except json.JSONDecodeError as e:
+                    print(f"[bootstrap] Looks like JSON but failed to parse: {e}")
+            
+            # If not JSON or extraction failed, use raw value
+            if api_key is None:
+                api_key = secret_value.strip()
+                print(f"[bootstrap] Using secret as plain string")
+            
+            if api_key and _validate_prefect_key(api_key):
+                os.environ["PREFECT_API_KEY"] = api_key
+                key_preview = api_key[:12] + "..." if len(api_key) > 12 else "***"
+                print(f"[bootstrap] Loaded PREFECT_API_KEY from Secrets Manager (starts with: {key_preview}, length={len(api_key)})")
             else:
-                print(f"[bootstrap] WARNING: Secret '{secret_name}' retrieved but appears empty.")
+                print(f"[bootstrap] WARNING: Secret '{secret_name}' retrieved but API key appears empty or invalid.")
 
         except ClientError as e:
             print(f"[bootstrap] ERROR: Could not fetch Prefect secret '{secret_name}': {e}")
         except Exception as e:
             print(f"[bootstrap] ERROR: Unexpected error fetching Prefect secret: {e}")
     
-    # Also log PREFECT_API_URL
+    # Log final state
     api_url = os.getenv("PREFECT_API_URL", "<not set>")
+    final_key_check = os.getenv("PREFECT_API_KEY", "")
     print(f"[bootstrap] PREFECT_API_URL = {api_url}")
+    print(f"[bootstrap] Final PREFECT_API_KEY set: {bool(final_key_check)} (length={len(final_key_check)})")
 
 # Run bootstrap before any Prefect imports
 _bootstrap_secrets()
@@ -511,20 +573,112 @@ def list_ecr_public_image_tags(repo_name: str) -> List[str]:
     return ordered
 
 # -----------------------------
+# Prefect Connection Test
+# -----------------------------
+@st.cache_data(show_spinner=False, ttl=300)  # Cache for 5 minutes
+def test_prefect_connection() -> tuple:
+    """
+    Test Prefect Cloud connection by attempting to list deployments.
+    Returns (success: bool, message: str, details: str)
+    """
+    api_key = os.getenv("PREFECT_API_KEY", "")
+    api_url = os.getenv("PREFECT_API_URL", "")
+    
+    if not api_key:
+        return False, "No API key", "PREFECT_API_KEY environment variable is not set"
+    if not api_url:
+        return False, "No API URL", "PREFECT_API_URL environment variable is not set"
+    
+    # Validate key format
+    valid_prefixes = ("pnu_", "psk_", "pap_")
+    if not any(api_key.startswith(p) for p in valid_prefixes):
+        return False, "Invalid key format", f"Key should start with pnu_/psk_/pap_, got: {api_key[:4]}..."
+    
+    # Try to hit the Prefect API
+    try:
+        # Try httpx first (comes with prefect), fallback to urllib
+        try:
+            import httpx
+            headers = {"Authorization": f"Bearer {api_key}"}
+            test_url = f"{api_url}/deployments/filter"
+            
+            with httpx.Client(timeout=10.0) as client:
+                response = client.post(
+                    test_url,
+                    headers=headers,
+                    json={"limit": 1}
+                )
+                
+                if response.status_code == 200:
+                    return True, "Connected", "Successfully authenticated to Prefect Cloud"
+                elif response.status_code == 401:
+                    return False, "Auth failed (401)", "API key is invalid, expired, or doesn't match this workspace"
+                elif response.status_code == 403:
+                    return False, "Forbidden (403)", "API key lacks permissions for this workspace"
+                else:
+                    return False, f"HTTP {response.status_code}", response.text[:200]
+        except ImportError:
+            # Fallback to urllib if httpx not available
+            import urllib.request
+            import urllib.error
+            
+            test_url = f"{api_url}/deployments/filter"
+            req = urllib.request.Request(
+                test_url,
+                data=b'{"limit": 1}',
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                method="POST"
+            )
+            
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    return True, "Connected", "Successfully authenticated to Prefect Cloud"
+            except urllib.error.HTTPError as e:
+                if e.code == 401:
+                    return False, "Auth failed (401)", "API key is invalid, expired, or doesn't match this workspace"
+                elif e.code == 403:
+                    return False, "Forbidden (403)", "API key lacks permissions for this workspace"
+                else:
+                    return False, f"HTTP {e.code}", str(e.reason)[:200]
+    except Exception as e:
+        return False, "Error", str(e)[:200]
+
+
+# -----------------------------
 # Sidebar (read-only config)
 # -----------------------------
 with st.sidebar:
     st.caption("Fargate UI • Batch on G5 Spot • FSx for Lustre • Prefect v3")
     
-    # Prefect API status indicator
+    # Prefect API status indicator with connection test
     prefect_key = os.getenv("PREFECT_API_KEY", "")
     prefect_url = os.getenv("PREFECT_API_URL", "")
+    
     if prefect_key and prefect_url:
-        st.success(f"✓ Prefect connected ({prefect_key[:8]}...)")
+        # Show key info
+        key_preview = prefect_key[:12] + "..." if len(prefect_key) > 12 else "***"
+        st.caption(f"API Key: {key_preview} (len={len(prefect_key)})")
+        
+        # Test actual connection
+        conn_ok, conn_status, conn_detail = test_prefect_connection()
+        if conn_ok:
+            st.success(f"✓ Prefect: {conn_status}")
+        else:
+            st.error(f"✗ Prefect: {conn_status}")
+            st.caption(f"Detail: {conn_detail}")
+            # Add button to clear cache and retry
+            if st.button("🔄 Retry Connection", key="retry_prefect"):
+                test_prefect_connection.clear()
+                st.rerun()
     elif prefect_key:
-        st.warning("⚠ API key set but no URL")
+        st.warning("⚠ API key set but no PREFECT_API_URL")
+        st.caption(f"Key length: {len(prefect_key)}")
     else:
         st.error("✗ PREFECT_API_KEY not set!")
+        st.caption("Check ECS task definition secrets or PREFECT_SECRET_NAME env var")
     
     st.text_input("AWS Region", value=AWS_REGION, disabled=True)
     st.text_input("Raw Bucket", value=RAW_BUCKET or "<not set>", disabled=True)
@@ -1116,6 +1270,29 @@ if ui.button("Submit", key="submit_btn"):
         # Fallback (existing data, no batch) - use run-existing but run_batch=False
         deployment_name = DEPLOYMENT_RUN_EXISTING
 
+    # Pre-submission connection check
+    conn_ok, conn_status, conn_detail = test_prefect_connection()
+    if not conn_ok:
+        st.error(f"❌ Cannot submit: Prefect connection failed - {conn_status}")
+        st.warning(f"Detail: {conn_detail}")
+        
+        # Show diagnostic info
+        with st.expander("🔍 Diagnostic Information"):
+            api_key = os.getenv("PREFECT_API_KEY", "")
+            api_url = os.getenv("PREFECT_API_URL", "")
+            st.code(f"""PREFECT_API_URL: {api_url}
+PREFECT_API_KEY length: {len(api_key)}
+PREFECT_API_KEY prefix: {api_key[:8]}... (if set)
+PREFECT_API_KEY valid format: {any(api_key.startswith(p) for p in ('pnu_', 'psk_', 'pap_'))}""")
+            st.caption("Check that your API key is valid and has access to this workspace.")
+            st.caption("You may need to regenerate the key in Prefect Cloud and update AWS Secrets Manager.")
+        
+        # Offer retry
+        if st.button("🔄 Retry Connection Check"):
+            test_prefect_connection.clear()
+            st.rerun()
+        st.stop()
+    
     try:
         # Debug: show what we're submitting
         st.info(f"Submitting to deployment: {deployment_name}")
@@ -1134,3 +1311,13 @@ if ui.button("Submit", key="submit_btn"):
         error_details = traceback.format_exc()
         st.error(f"Submission failed: {type(e).__name__}: {e}")
         st.code(error_details, language="python")
+        
+        # Additional diagnostics for auth errors
+        if "401" in str(e) or "Unauthorized" in str(e):
+            st.warning("🔑 This appears to be an authentication error.")
+            with st.expander("🔍 Debug Info"):
+                api_key = os.getenv("PREFECT_API_KEY", "")
+                st.code(f"""API Key Length: {len(api_key)}
+API Key Prefix: {api_key[:12]}...
+API Key looks like JSON: {api_key.strip().startswith('{')}""")
+                st.caption("If the key looks like JSON, the secret extraction may have failed.")

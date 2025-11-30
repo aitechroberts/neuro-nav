@@ -227,7 +227,16 @@ def main(cfg : DictConfig):
         depth_array = depth_tensor.cpu().numpy()
         color_np = color_tensor.cpu().numpy() # (H, W, 3)
         image_rgb = (color_np).astype(np.uint8) # (H, W, 3)
-        assert image_rgb.max() > 1, "Image is not in range [0, 255]"
+        # Make sure we end up with uint8 in [0, 255] for logging / VLM / Rerun.
+        if image_rgb.dtype in (np.float32, np.float64) and image_rgb.max() <= 1.0:
+            # Float image in [0, 1] -> scale to [0, 255]
+            image_rgb = (image_rgb * 255.0).clip(0, 255).astype(np.uint8)
+        elif image_rgb.dtype != np.uint8:
+            # Some other dtype (e.g. int16) -> just clip to [0, 255]
+            image_rgb = image_rgb.clip(0, 255).astype(np.uint8)
+
+        # Optional: keep a softer assert, only to catch totally broken images
+        assert image_rgb.max() >= 0, "Image seems to be completely invalid"
 
         # Load image detections for the current frame
         raw_gobs = None
@@ -292,12 +301,45 @@ def main(cfg : DictConfig):
                 class_id=detection_class_ids,
                 mask=masks_np,
             )
-            
-            # Make the edges
-            labels, edges, edge_image, captions = make_vlm_edges_and_captions(image, curr_det, obj_classes, detection_class_labels, det_exp_vis_path, color_path, cfg.make_edges, openai_client)
+            # Number of detections that survived to this point
+            num_dets = len(curr_det.xyxy)
 
-            image_crops, image_feats, text_feats = compute_clip_features_batched(
-                image_rgb, curr_det, clip_model, clip_preprocess, clip_tokenizer, obj_classes.get_classes_arr(), cfg.device)
+            if num_dets == 0:
+                # No detections for this frame:
+                # - don't call VLM
+                # - don't call CLIP
+                # - but still let SLAM / mapping continue below
+                labels = []
+                edges = []
+                edge_image = None
+                captions = []
+
+                image_crops = []
+                image_feats = None
+                text_feats = None
+            else:
+                # Make the edges (VLM step; internally respects cfg.make_edges)
+                labels, edges, edge_image, captions = make_vlm_edges_and_captions(
+                    image,
+                    curr_det,
+                    obj_classes,
+                    detection_class_labels,
+                    det_exp_vis_path,
+                    color_path,
+                    cfg.make_edges,
+                    openai_client,
+                )
+
+                # Compute CLIP features for the current detections
+                image_crops, image_feats, text_feats = compute_clip_features_batched(
+                    image_rgb,
+                    curr_det,
+                    clip_model,
+                    clip_preprocess,
+                    clip_tokenizer,
+                    obj_classes.get_classes_arr(),
+                    cfg.device,
+                )
 
             # increment total object detections
             tracker.increment_total_detections(len(curr_det.xyxy))
