@@ -1,0 +1,59 @@
+# Example: How to replace Qwen2-VL with Distilled Model
+# File: neuro-nav-vlm/conceptgraph/scenegraph/build_scenegraph_vlm.py
+
+# ============================================================================
+# CHANGE 1: In refine_node_captions() function (around line 326)
+# ============================================================================
+
+# OLD CODE (line 326):
+# from conceptgraph.vlm.qwen2vl_model import Qwen2VLModel
+
+# NEW CODE:
+import sys
+import os
+# Add path to access distilled_model
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+from distilled_model.distilled_vlm_wrapper import DistilledVLMModel
+
+# OLD CODE (lines 337-341):
+# qwen = Qwen2VLModel(
+#     model_name=args.qwen_model,
+#     device=args.device,
+# )
+
+# NEW CODE:
+# Use distilled model instead
+qwen = DistilledVLMModel(
+    model_path=os.path.join(os.path.dirname(__file__), '..', '..', '..', 
+                           'distilled_model', 'outputs', 'final_student_model.pt'),
+    device=args.device,
+)
+
+# ============================================================================
+# CHANGE 2: In build_scenegraph() function (around line 519)
+# ============================================================================
+
+# OLD CODE (line 519):
+# from conceptgraph.vlm.qwen2vl_model import Qwen2VLModel
+# qwen = Qwen2VLModel(model_name=args.qwen_model, device=args.device)
+
+# NEW CODE:
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+from distilled_model.distilled_vlm_wrapper import DistilledVLMModel
+
+qwen = DistilledVLMModel(
+    model_path=os.path.join(os.path.dirname(__file__), '..', '..', '..',
+                           'distilled_model', 'outputs', 'final_student_model.pt'),
+    device=args.device,
+)
+
+# ============================================================================
+# NOTE: The rest of the code stays the same!
+# The qwen object is used exactly the same way:
+# - qwen.refine_caption(image, captions)
+# - qwen.extract_object_relationships(images, obj1, obj2)
+# etc.
+# ============================================================================
+
