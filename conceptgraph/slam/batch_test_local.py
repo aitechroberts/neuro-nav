@@ -172,7 +172,7 @@ def main(cfg: DictConfig):
     # Detection mode
     run_detections = check_run_detections(cfg.force_detection, det_exp_path)
     det_exp_pkl_path = get_det_out_path(det_exp_path)
-    # det_exp_vis_path = get_vis_out_path(det_exp_path) # REMOVED
+    # det_exp_vis_path = get_vis_out_path(det_exp_path) # REMOVED for headless batch
     
     # Define a temporary or dummy path for VLM visual prompt generation if needed
     det_exp_vis_path = det_exp_path / "vlm_temp"

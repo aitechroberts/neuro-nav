@@ -19,7 +19,7 @@ import numpy as np
 import torch
 from PIL import Image
 from tqdm import trange
-from open3d.io import read_pinhole_camera_parameters
+# from open3d.io import read_pinhole_camera_parameters # REMOVED for headless batch
 import hydra
 from omegaconf import DictConfig
 import open_clip
@@ -32,19 +32,18 @@ from conceptgraph.utils.logging_metrics import MappingTracker
 from conceptgraph.utils.optional_wandb_wrapper import OptionalWandB
 from conceptgraph.utils.vlm import consolidate_captions, get_openai_client
 from conceptgraph.utils.ious import mask_subtract_contained
-from conceptgraph.utils.vis import (
-    OnlineObjectRenderer,
-    save_video_from_frames,
-    vis_result_fast_on_depth,
-    vis_result_fast,
-    save_video_detections,
-)
+# from conceptgraph.utils.vis import (
+#     OnlineObjectRenderer, # REMOVED for headless batch
+#     save_video_from_frames,
+#     vis_result_fast_on_depth,
+#     vis_result_fast,
+#     save_video_detections,
+# )
 from conceptgraph.utils.model_utils import compute_clip_features_batched
 from conceptgraph.utils.general_utils import (
     ObjectClasses,
     get_det_out_path,
-    get_exp_out_path,
-    get_vis_out_path,
+    # get_vis_out_path, # REMOVED for headless batch
     handle_rerun_saving,  # safe to keep import; not used
     load_saved_detections,
     load_saved_hydra_json_config,
@@ -84,6 +83,32 @@ from conceptgraph.slam.mapping import (
 # Disable torch gradient computation
 torch.set_grad_enabled(False)
 
+
+def _resolve_output_base(cfg: DictConfig) -> Path:
+    """
+    Allow local smoke tests to direct experiment outputs to a separate
+    bind-mounted directory (e.g., /mnt/local-output) while still reading
+    datasets from the usual dataset_root. Precedence:
+      1. Hydra config value `output_root` (if provided)
+      2. Environment variable OUTPUT_ROOT
+      3. Fall back to cfg.dataset_root
+    """
+    output_override = None
+    if "output_root" in cfg:
+        output_override = cfg.get("output_root")
+    if not output_override:
+        output_override = os.getenv("OUTPUT_ROOT")
+    if output_override:
+        return Path(output_override)
+    return Path(cfg.dataset_root)
+
+
+def _build_exp_path(base_root: Path, scene_id: str, exp_suffix: str, create: bool = True) -> Path:
+    path = base_root / scene_id / "exps" / exp_suffix
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
+    return path
+
 @hydra.main(version_base=None, config_path="../hydra_configs/", config_name="batch_vlm_mapping")
 def main(cfg: DictConfig):
     tracker = MappingTracker()
@@ -113,19 +138,20 @@ def main(cfg: DictConfig):
     objects = MapObjectList(device=cfg.device)
     map_edges = MapEdgeMapping(objects)
 
-    # Optional visualization (disabled by default for batch)
-    if cfg.vis_render:
-        view_param = read_pinhole_camera_parameters(cfg.render_camera_path)
-        obj_renderer = OnlineObjectRenderer(
-            view_param=view_param,
-            base_objects=None,
-            gray_map=False,
-        )
-        frames = []
+    # REMOVED: Optional visualization (disabled by default for batch)
+    # if cfg.vis_render:
+    #     view_param = read_pinhole_camera_parameters(cfg.render_camera_path)
+    #     obj_renderer = OnlineObjectRenderer(
+    #         view_param=view_param,
+    #         base_objects=None,
+    #         gray_map=False,
+    #     )
+    #     frames = []
 
-    # Output folders
-    exp_out_path = get_exp_out_path(cfg.dataset_root, cfg.scene_id, cfg.exp_suffix)
-    det_exp_path = get_exp_out_path(cfg.dataset_root, cfg.scene_id, cfg.detections_exp_suffix, make_dir=False)
+    # Output folders (optionally redirected via OUTPUT_ROOT / output_root)
+    output_base = _resolve_output_base(cfg)
+    exp_out_path = _build_exp_path(output_base, cfg.scene_id, cfg.exp_suffix, create=True)
+    det_exp_path = _build_exp_path(output_base, cfg.scene_id, cfg.detections_exp_suffix, create=False)
 
     # Classes must match detection experiment
     detections_exp_cfg = cfg_to_dict(cfg)
@@ -138,18 +164,55 @@ def main(cfg: DictConfig):
     # Detection mode
     run_detections = check_run_detections(cfg.force_detection, det_exp_path)
     det_exp_pkl_path = get_det_out_path(det_exp_path)
-    det_exp_vis_path = get_vis_out_path(det_exp_path)
+    # det_exp_vis_path = get_vis_out_path(det_exp_path) # REMOVED for headless batch
+
+    # Define a temporary or dummy path for VLM visual prompt generation if needed
+    det_exp_vis_path = det_exp_path / "vlm_temp"
+    if cfg.make_edges:
+        det_exp_vis_path.mkdir(parents=True, exist_ok=True)
 
     # Initialize detectors and CLIP (GPU-aware)
     if run_detections:
         print("\n".join(["Running detections..."] * 3))
         det_exp_path.mkdir(parents=True, exist_ok=True)
 
-        detection_model = measure_time(YOLO)("yolov8l-worldv2.pt")
-        sam_predictor = SAM("sam2.1_s.pt")
-        clip_model, _, clip_preprocess = open_clip.create_model_and_transforms("ViT-H-14", "laion2b_s32b_b79k")
+        # Check if CKPT_DIR env var is set (e.g. /mnt/checkpoints) to use local weights
+        ckpt_dir = os.environ.get("CKPT_DIR", "")
+        
+        # 1. Initialize YOLO with local weights check
+        yolo_weights = "yolov8l-worldv2.pt"
+        if ckpt_dir and (Path(ckpt_dir) / yolo_weights).exists():
+            yolo_weights = str(Path(ckpt_dir) / yolo_weights)
+            print(f"Using local YOLO weights: {yolo_weights}")
+        
+        detection_model = measure_time(YOLO)(yolo_weights)
+
+        # 2. Initialize SAM with local weights check
+        sam_weights = "sam2.1_b.pt"
+        if ckpt_dir and (Path(ckpt_dir) / sam_weights).exists():
+            sam_weights = str(Path(ckpt_dir) / sam_weights)
+            print(f"Using local SAM weights: {sam_weights}")
+            
+        sam_predictor = SAM(sam_weights)
+
+        # 3. Initialize CLIP (MobileCLIP2-S3) with HF cache check
+        model_name = "MobileCLIP2-S3"
+        pretrained_tag = "dfndr2b"
+        
+        if ckpt_dir and os.path.exists(ckpt_dir):
+             # Set HF cache to a subdirectory in checkpoints to keep it organized
+             hf_cache_dir = os.path.join(ckpt_dir, "huggingface")
+             os.makedirs(hf_cache_dir, exist_ok=True)
+             os.environ["HF_HOME"] = hf_cache_dir
+             print(f"Set HF_HOME to {hf_cache_dir}")
+
+        clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
+            model_name, 
+            pretrained=pretrained_tag,
+            cache_dir=os.environ.get("HF_HOME") # Explicitly pass cache_dir if set
+        )
         clip_model = clip_model.to(cfg.device)
-        clip_tokenizer = open_clip.get_tokenizer("ViT-H-14")
+        clip_tokenizer = open_clip.get_tokenizer(model_name)
         detection_model.set_classes(obj_classes.get_classes_arr())
     else:
         print("\n".join(["NOT Running detections..."] * 3))
@@ -198,7 +261,7 @@ def main(cfg: DictConfig):
         # Load or compute detections
         raw_gobs = None
         gobs = None
-        detections_path = det_exp_pkl_path / (color_path.stem + ".pkl.gz")
+        # detections_path = det_exp_pkl_path / (color_path.stem + ".pkl.gz") # Unused variable
 
         if run_detections:
             # OpenCV image
@@ -275,18 +338,18 @@ def main(cfg: DictConfig):
             }
 
             if cfg.save_detections:
-                vis_save_path = (det_exp_vis_path / color_path.name).with_suffix(".jpg")
-                annotated_image, _ = vis_result_fast(image, curr_det, obj_classes.get_classes_arr())
-                cv2.imwrite(str(vis_save_path), annotated_image)
+                # REMOVED: vis_save_path = (det_exp_vis_path / color_path.name).with_suffix(".jpg")
+                # REMOVED: annotated_image, _ = vis_result_fast(image, curr_det, obj_classes.get_classes_arr())
+                # REMOVED: cv2.imwrite(str(vis_save_path), annotated_image)
 
-                depth_image_rgb = cv2.normalize(depth_array, None, 0, 255, cv2.NORM_MINMAX)
-                depth_image_rgb = depth_image_rgb.astype(np.uint8)
-                depth_image_rgb = cv2.cvtColor(depth_image_rgb, cv2.COLOR_GRAY2BGR)
-                annotated_depth_image, _ = vis_result_fast_on_depth(depth_image_rgb, curr_det, obj_classes.get_classes_arr())
-                cv2.imwrite(str(vis_save_path).replace(".jpg", "_depth.jpg"), annotated_depth_image)
-                cv2.imwrite(str(vis_save_path).replace(".jpg", "_depth_only.jpg"), depth_image_rgb)
+                # REMOVED: depth_image_rgb = cv2.normalize(depth_array, None, 0, 255, cv2.NORM_MINMAX)
+                # REMOVED: depth_image_rgb = depth_image_rgb.astype(np.uint8)
+                # REMOVED: depth_image_rgb = cv2.cvtColor(depth_image_rgb, cv2.COLOR_GRAY2BGR)
+                # REMOVED: annotated_depth_image, _ = vis_result_fast_on_depth(depth_image_rgb, curr_det, obj_classes.get_classes_arr())
+                # REMOVED: cv2.imwrite(str(vis_save_path).replace(".jpg", "_depth.jpg"), annotated_depth_image)
+                # REMOVED: cv2.imwrite(str(vis_save_path).replace(".jpg", "_depth_only.jpg"), depth_image_rgb)
 
-                save_detection_results(det_exp_pkl_path / vis_save_path.stem, raw_gobs)
+                save_detection_results(det_exp_pkl_path / color_path.stem, raw_gobs)
         else:
             # Load saved detections (support current and old formats)
             if os.path.exists(det_exp_pkl_path / color_path.stem):
@@ -481,39 +544,39 @@ def main(cfg: DictConfig):
                 color_path,
             )
 
-        # Optional render (usually off in batch)
-        if cfg.vis_render:
-            filtered_objects = [
-                obj for obj in objects if obj["num_detections"] >= cfg.obj_min_detections and not obj["is_background"]
-            ]
-            objects_vis = MapObjectList([o for o in filtered_objects])
-            if cfg.class_agnostic:
-                objects_vis.color_by_instance()
-            else:
-                objects_vis.color_by_most_common_classes(obj_classes)
-            rendered_image, vis = obj_renderer.step(
-                image=image_original_pil,
-                gt_pose=adjusted_pose,
-                new_objects=objects_vis,
-                paint_new_objects=False,
-                return_vis_handle=cfg.debug_render,
-            )
-            if rendered_image is not None:
-                rendered_image = (rendered_image * 255).astype(np.uint8)
-                frame_info_text = f"Frame: {frame_idx}, Objects: {len(objects)}, Path: {str(color_path)}"
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                font_scale = 0.5
-                color = (255, 0, 0)
-                thickness = 1
-                line_type = cv2.LINE_AA
-                position = (10, rendered_image.shape[0] - 10)
-                cv2.putText(rendered_image, frame_info_text, position, font, font_scale, color, thickness, line_type)
-                frames.append(rendered_image)
-            if is_final_frame:
-                frames_np = np.stack(frames)
-                video_save_path = exp_out_path / (f"s_mapping_{cfg.exp_suffix}.mp4")
-                save_video_from_frames(frames_np, video_save_path, fps=10)
-                print("Save video to %s" % video_save_path)
+        # # Optional render (usually off in batch)
+        # if cfg.vis_render:
+        #     filtered_objects = [
+        #         obj for obj in objects if obj["num_detections"] >= cfg.obj_min_detections and not obj["is_background"]
+        #     ]
+        #     objects_vis = MapObjectList([o for o in filtered_objects])
+        #     if cfg.class_agnostic:
+        #         objects_vis.color_by_instance()
+        #     else:
+        #         objects_vis.color_by_most_common_classes(obj_classes)
+        #     rendered_image, vis = obj_renderer.step(
+        #         image=image_original_pil,
+        #         gt_pose=adjusted_pose,
+        #         new_objects=objects_vis,
+        #         paint_new_objects=False,
+        #         return_vis_handle=cfg.debug_render,
+        #     )
+        #     if rendered_image is not None:
+        #         rendered_image = (rendered_image * 255).astype(np.uint8)
+        #         frame_info_text = f"Frame: {frame_idx}, Objects: {len(objects)}, Path: {str(color_path)}"
+        #         font = cv2.FONT_HERSHEY_SIMPLEX
+        #         font_scale = 0.5
+        #         color = (255, 0, 0)
+        #         thickness = 1
+        #         line_type = cv2.LINE_AA
+        #         position = (10, rendered_image.shape[0] - 10)
+        #         cv2.putText(rendered_image, frame_info_text, position, font, font_scale, color, thickness, line_type)
+        #         frames.append(rendered_image)
+        #     if is_final_frame:
+        #         frames_np = np.stack(frames)
+        #         video_save_path = exp_out_path / (f"s_mapping_{cfg.exp_suffix}.mp4")
+        #         save_video_from_frames(frames_np, video_save_path, fps=10)
+        #         print("Save video to %s" % video_save_path)
 
         # Periodic PCD saving (configurable)
         if cfg.periodically_save_pcd and (counter % cfg.periodically_save_pcd_interval == 0):
@@ -571,6 +634,20 @@ def main(cfg: DictConfig):
             edges=map_edges,
         )
 
+    if cfg.get("save_semantic_snapshot", False):
+        save_pointcloud(
+            exp_suffix=cfg.exp_suffix,
+            exp_out_path=exp_out_path,
+            cfg=cfg,
+            objects=objects,
+            obj_classes=obj_classes,
+            latest_pcd_filepath=None,
+            create_symlink=False,
+            edges=map_edges,
+            include_geometry=False,
+            artifact_prefix="semantic",
+        )
+
     if cfg.save_json:
         save_obj_json(exp_suffix=cfg.exp_suffix, exp_out_path=exp_out_path, objects=objects)
         from conceptgraph.utils.general_utils import save_edge_json
@@ -587,9 +664,9 @@ def main(cfg: DictConfig):
                 },
                 f,
             )
-
-    if run_detections and cfg.save_video:
-        save_video_detections(det_exp_path)
+    # REMOVED: for headless batch
+    # if run_detections and cfg.save_video:
+    #     save_video_detections(det_exp_path)
 
     owandb.finish()
 

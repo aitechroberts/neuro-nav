@@ -64,9 +64,9 @@ The names were obtained from a simple object detection system and may be inaacur
 
 Your response should be in the format of a list of dictionaries, where each dictionary contains the id, name, and caption of an object. Your response will be evaluated as a python list of dictionaries, so make sure to format it correctly. An example of the expected response format is as follows:
 [
-    {"id": "1", "name": "object1", "caption": "concise description of the object1 in the image"},
-    {"id": "2", "name": "object2", "caption": "concise description of the object2 in the image"},
-    {"id": "3", "name": "object3", "caption": "concise description of the object3 in the image"}
+    {"id": "1", "name": "object1", "caption": "concise but detailed description of the object1 in the image of a maximum of 2 sentences or less"},
+    {"id": "2", "name": "object2", "caption": "concise but detailed description of the object2 in the image of a maximum of 2 sentences or less"},
+    {"id": "3", "name": "object3", "caption": "concise but detailed description of the object3 in the image of a maximum of 2 sentences or less"}
     ...
 ]
 
@@ -82,11 +82,11 @@ Ensure the consolidated caption is clear, concise, and captures the essential de
 
 Here is an example of the input format:
 [
-    {"id": "3", "name": "cigar box", "caption": "rectangular cigar box on the side cabinet"},
+    {"id": "3", "name": "cigar box", "caption": "rectangular, nondescript cigar box on the side cabinet. It looks like it must be used to store cigars or other tobacco products."},
     {"id": "9", "name": "cigar box", "caption": "A small cigar box placed on the side cabinet."},
-    {"id": "7", "name": "cigar box", "caption": "A small cigar box is on the side cabinet."},
-    {"id": "8", "name": "cigar box", "caption": "Box on top of the dresser"},
-    {"id": "5", "name": "cigar box", "caption": "A cigar box placed on the dresser next to the coffeepot."},
+    {"id": "7", "name": "cigar box", "caption": "A neat little cigar box is on the side cabinet that looks to be a vintage model bar."},
+    {"id": "8", "name": "cigar box", "caption": "A small box on top of the beige painted dresser that looks like it holds clothes and toys"},
+    {"id": "5", "name": "cigar box", "caption": "A light brown cedar cigar box on the biege painted dresser with gold handles next to the common balck coffeepot."},
 ]
 
 Your response should be a JSON object with the format:
@@ -100,7 +100,7 @@ Do not include any additional information in your response.
 system_prompt = system_prompt_only_top
 
 # gpt_model = "gpt-4-vision-preview"
-gpt_model = "gpt-4o-2024-05-13"
+gpt_model = "gpt-5-mini"
 
 def get_openai_client():
     client = OpenAI(

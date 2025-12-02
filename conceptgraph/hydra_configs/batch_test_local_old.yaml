@@ -7,37 +7,34 @@ defaults:
   - logging_level
   - _self_
 
-# Detection experiment and mapping experiment labels
+# Keep naming consistent with batch pipelines but differentiate local runs
 detections_exp_suffix: s_detections_batch
 force_detection: !!bool True
-save_detections: !!bool False
+save_detections: !!bool True
 
-# VLM edges/captions (env-overridable)
-make_edges: ${oc.env:MAKE_EDGES,true}
+# Local smoke tests disable VLM edges by default (override with MAKE_EDGES=true)
+make_edges: !!bool False
 
-# Output controls (env-overridable)
-save_json: ${oc.env:SAVE_JSON,true}
-save_pcd: ${oc.env:SAVE_PCD,true}
-save_semantic_snapshot: ${oc.env:SAVE_SEMANTIC_SNAPSHOT,true}
-vis_render: ${oc.env:VIS_RENDER,false}
+# Short frame range for quick iteration (override via env START/END/STRIDE)
+start: 0
+end: 10
+stride: 1
+exp_suffix: batch_vlm_local
 
-# Frame sampling
-stride: 10
-exp_suffix: batch_vlm
-
-# Optional output redirection
+# Optional override so outputs can be redirected to a dedicated mount
 output_root: ${oc.env:OUTPUT_ROOT,}
 
-# Batch-friendly flags
+# Batch-friendly toggles
 save_video: !!bool False
 save_objects_all_frames: !!bool False
+save_semantic_snapshot: !!bool True
 
 downsample_voxel_size: 0.01
 obj_pcd_max_points: 5000
 
 debug_render: !!bool False
+vis_render: !!bool False
 
-# Post-processing intervals
 denoise_interval: 5
 filter_interval: 5
 merge_interval: 5
@@ -55,4 +52,3 @@ obj_min_detections: 1
 use_rerun: !!bool False
 save_rerun: !!bool False
 
-use_wandb: ${oc.env:USE_WANDB,true}

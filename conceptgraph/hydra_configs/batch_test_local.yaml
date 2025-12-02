@@ -1,54 +1,35 @@
 defaults:
-  - base
-  - base_mapping
-  - replica
-  - sam
-  - classes
+  - base            # toggles wandb / rerun basics
+  - base_mapping    # mapping + slam defaults
+  - replica         # Replica dataset paths/config
+  - sam             # SAM model config
+  - classes         # object classes + bg classes
   - logging_level
   - _self_
 
-# Keep naming consistent with batch pipelines but differentiate local runs
-detections_exp_suffix: s_detections_batch
+# Use the Docker/env defaults but allow overrides via env + CLI
+
+# Where merged outputs go. batch_test_local.py will look at this via
+# _resolve_output_base() and build: output_root/scene_id/exps/exp_suffix
+output_root: ${env:OUTPUT_ROOT, null}
+
+# Detection experiment label
+detections_exp_suffix: ${env:DET_EXP_SUFFIX, s_detections_batch}
 force_detection: !!bool True
-save_detections: !!bool True
+save_detections: !!bool False
 
-# Local smoke tests disable VLM edges by default (override with MAKE_EDGES=true)
-make_edges: !!bool False
+# For local laptop runs, usually no VLM edges and no heavy viz.
+make_edges: ${env:MAKE_EDGES, true}
+save_json: ${env:SAVE_JSON, true}
+save_pcd: ${env:SAVE_PCD, true}
+save_semantic_snapshot: ${env:SAVE_SEMANTIC_SNAPSHOT, true}
+vis_render: ${env:VIS_RENDER, false}
 
-# Short frame range for quick iteration (override via env START/END/STRIDE)
-start: 0
-end: 10
-stride: 1
-exp_suffix: batch_vlm_local
+# Device / frame selection (overridable by env + CLI)
+device: ${env:DEVICE, cuda}
+start: ${env:START, 0}
+end: ${env:END, -1}
+stride: ${env:STRIDE, 10}
 
-# Optional override so outputs can be redirected to a dedicated mount
-output_root: ${oc.env:OUTPUT_ROOT,}
-
-# Batch-friendly toggles
-save_video: !!bool False
-save_objects_all_frames: !!bool False
-save_semantic_snapshot: !!bool True
-
-downsample_voxel_size: 0.01
-obj_pcd_max_points: 5000
-
-debug_render: !!bool False
-vis_render: !!bool False
-
-denoise_interval: 5
-filter_interval: 5
-merge_interval: 5
-run_denoise_final_frame: !!bool True
-run_filter_final_frame: !!bool True
-run_merge_final_frame: !!bool True
-
-dbscan_remove_noise: !!bool True
-dbscan_eps: 0.1
-dbscan_min_points: 10
-
-obj_min_points: 0
-obj_min_detections: 1
-
-use_rerun: !!bool False
-save_rerun: !!bool False
-
+# WandB off by default for laptop batch runs
+use_wandb: ${env:USE_WANDB, true}

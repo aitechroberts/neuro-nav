@@ -1,41 +1,52 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Scenes to run (space-separated). If empty, run all detected scenes.
+SCENES_TO_RUN="${SCENES_TO_RUN:-}"
+
+# If true, delete scene input folder after processing (cloud mode).
+# For laptop mode, we will set this to "false" in the wrapper script.
+DELETE_INPUT_AFTER_RUN="${DELETE_INPUT_AFTER_RUN:-true}"
+
 echo "[entrypoint-multi] Multi-Batch VLM Mapping start"
 
 # =============================================================================
 # SECRETS BOOTSTRAP: Fetch secrets from AWS Secrets Manager
 # =============================================================================
-OPENAI_SECRET_NAME="${OPENAI_SECRET_NAME:-OpenAI}"
 if [[ -z "${OPENAI_API_KEY:-}" ]]; then
-  echo "[entrypoint] Fetching OPENAI_API_KEY from Secrets Manager (${OPENAI_SECRET_NAME})..."
-  if OPENAI_SECRET=$(aws secretsmanager get-secret-value --secret-id "${OPENAI_SECRET_NAME}" --query SecretString --output text 2>/dev/null); then
-    if [[ "${OPENAI_SECRET}" == \{* ]]; then
-      export OPENAI_API_KEY=$(echo "${OPENAI_SECRET}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('OPENAI_API_KEY') or d.get('api_key') or d.get('key') or '')" 2>/dev/null || echo "")
+    OPENAI_SECRET_NAME="${OPENAI_SECRET_NAME:-OpenAI}"
+    if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+    echo "[entrypoint] Fetching OPENAI_API_KEY from Secrets Manager (${OPENAI_SECRET_NAME})..."
+    if OPENAI_SECRET=$(aws secretsmanager get-secret-value --secret-id "${OPENAI_SECRET_NAME}" --query SecretString --output text 2>/dev/null); then
+        if [[ "${OPENAI_SECRET}" == \{* ]]; then
+        export OPENAI_API_KEY=$(echo "${OPENAI_SECRET}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('OPENAI_API_KEY') or d.get('api_key') or d.get('key') or '')" 2>/dev/null || echo "")
+        else
+        export OPENAI_API_KEY="${OPENAI_SECRET}"
+        fi
+        if [[ -n "${OPENAI_API_KEY}" ]]; then
+        echo "[entrypoint] Loaded OPENAI_API_KEY from Secrets Manager"
+        fi
     else
-      export OPENAI_API_KEY="${OPENAI_SECRET}"
+        echo "[entrypoint][warn] Could not fetch OpenAI secret from Secrets Manager"
     fi
-    if [[ -n "${OPENAI_API_KEY}" ]]; then
-      echo "[entrypoint] Loaded OPENAI_API_KEY from Secrets Manager"
     fi
-  else
-    echo "[entrypoint][warn] Could not fetch OpenAI secret from Secrets Manager"
-  fi
 fi
 
-WANDB_SECRET_NAME="${WANDB_SECRET_NAME:-WandB}"
 if [[ -z "${WANDB_API_KEY:-}" ]]; then
-   echo "[entrypoint] Attempting to fetch WANDB_API_KEY from Secrets Manager (${WANDB_SECRET_NAME})..."
-   if WANDB_SECRET=$(aws secretsmanager get-secret-value --secret-id "${WANDB_SECRET_NAME}" --query SecretString --output text 2>/dev/null); then
-       if [[ "${WANDB_SECRET}" == \{* ]]; then
-           export WANDB_API_KEY=$(echo "${WANDB_SECRET}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('WANDB_API_KEY') or d.get('api_key') or d.get('key') or '')" 2>/dev/null || echo "")
-       else
-           export WANDB_API_KEY="${WANDB_SECRET}"
-       fi
-       if [[ -n "${WANDB_API_KEY}" ]]; then
-           echo "[entrypoint] Loaded WANDB_API_KEY from Secrets Manager"
-       fi
-   fi
+    WANDB_SECRET_NAME="${WANDB_SECRET_NAME:-WandB}"
+    if [[ -z "${WANDB_API_KEY:-}" ]]; then
+    echo "[entrypoint] Attempting to fetch WANDB_API_KEY from Secrets Manager (${WANDB_SECRET_NAME})..."
+    if WANDB_SECRET=$(aws secretsmanager get-secret-value --secret-id "${WANDB_SECRET_NAME}" --query SecretString --output text 2>/dev/null); then
+        if [[ "${WANDB_SECRET}" == \{* ]]; then
+            export WANDB_API_KEY=$(echo "${WANDB_SECRET}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('WANDB_API_KEY') or d.get('api_key') or d.get('key') or '')" 2>/dev/null || echo "")
+        else
+            export WANDB_API_KEY="${WANDB_SECRET}"
+        fi
+        if [[ -n "${WANDB_API_KEY}" ]]; then
+            echo "[entrypoint] Loaded WANDB_API_KEY from Secrets Manager"
+        fi
+    fi
+    fi
 fi
 
 ENTRYPOINT_MODULE="${BATCH_MAIN:-conceptgraph.slam.batch_vlm_mapping}"
@@ -59,10 +70,11 @@ if [[ -n "${S3_INPUT_URI:-}" ]]; then
             # Optional: remove zip to save space immediately
             rm "${zipfile}"
         done
+    else
+        echo "[entrypoint] No .zip files found in ${DATA_ROOT}."
     fi
 else
-    echo "[entrypoint][error] S3_INPUT_URI is not set. Cannot proceed with batch."
-    exit 1
+    echo "[entrypoint] S3_INPUT_URI not set; assuming scenes already exist under ${DATA_ROOT} (local mode)."
 fi
 
 # =============================================================================
@@ -80,6 +92,14 @@ echo "[entrypoint] Searching for scenes in ${DATA_ROOT}..."
 find "${DATA_ROOT}" -mindepth 1 -maxdepth 2 -type d -not -name "__MACOSX" | while read -r SCENE_DIR; do
     
     CURRENT_SCENE_ID=$(basename "${SCENE_DIR}")
+    # If SCENES_TO_RUN is set, only run those
+    if [[ -n "${SCENES_TO_RUN}" ]]; then
+        if [[ ! " ${SCENES_TO_RUN} " =~ " ${CURRENT_SCENE_ID} " ]]; then
+            echo "[entrypoint][skip] ${CURRENT_SCENE_ID} not in SCENES_TO_RUN=(${SCENES_TO_RUN})"
+            continue
+        fi
+    fi
+
     # Simple check to skip likely non-scene dirs (e.g. 'Replica' container folder if not flat)
     # If it contains other directories, it might be a container. If it contains files, it's a scene.
     if [[ -z "$(ls -A "${SCENE_DIR}")" ]]; then
@@ -160,31 +180,14 @@ find "${DATA_ROOT}" -mindepth 1 -maxdepth 2 -type d -not -name "__MACOSX" | whil
     fi
 
     echo "[entrypoint] Cleaning up input data for ${CURRENT_SCENE_ID}..."
-    rm -rf "${SCENE_DIR}"
+    if [[ "${DELETE_INPUT_AFTER_RUN}" == "true" ]]; then
+        echo "[entrypoint] DELETE_INPUT_AFTER_RUN=true -> removing ${SCENE_DIR}"
+        rm -rf "${SCENE_DIR}"
+    else
+        echo "[entrypoint][local-mode] Skipping deletion of ${SCENE_DIR}"
+    fi
     
 done
-
-echo "[entrypoint] Cleaning model caches (HuggingFace, Torch, Ultralytics)..."
-
-# HuggingFace + Torch + Ultralytics default cache dirs
-rm -rf /root/.cache/huggingface 2>/dev/null || true
-rm -rf /root/.cache/torch 2>/dev/null || true
-rm -rf /root/.cache/ultralytics 2>/dev/null || true
-
-# Respect any custom env overrides if you ever set them
-if [[ -n "${HF_HOME:-}" ]]; then
-  rm -rf "${HF_HOME}" 2>/dev/null || true
-fi
-
-if [[ -n "${HF_HUB_CACHE:-}" ]]; then
-  rm -rf "${HF_HUB_CACHE}" 2>/dev/null || true
-fi
-
-if [[ -n "${TORCH_HOME:-}" ]]; then
-  rm -rf "${TORCH_HOME}" 2>/dev/null || true
-fi
-
-echo "[entrypoint] Cache cleanup done."
 
 echo "[entrypoint] All scenes processed."
 
