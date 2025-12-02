@@ -1,0 +1,137 @@
+FROM nvidia/cuda:12.6.0-cudnn-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_LINK_MODE=copy \
+    UV_CACHE_DIR=/root/.cache/uv
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-venv python3-dev \
+    git curl wget ca-certificates \
+    ffmpeg \
+    build-essential \
+    libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv (project manager)
+# Force install to /usr/local/bin so it is found without PATH issues
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
+
+ARG PROJECT_DIR="."
+
+WORKDIR /app/neuro-nav
+
+# Copy project manifest first for better layer caching
+COPY ${PROJECT_DIR}/neuro-nav/pyproject.toml ./pyproject.toml
+# If you create a uv.lock later, copy it here too:
+COPY ${PROJECT_DIR}/neuro-nav/uv.lock ./uv.lock
+
+# Mount the cache so it's NOT saved in the image layer
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-dev
+
+# Ensure CUDA-enabled PyTorch inside the venv (aligns with pyproject pins)
+# AND force rebuild PyTorch3D from source to ensure ABI compatibility
+# Use --no-build-isolation because pytorch3d setup.py needs to import torch
+RUN . .venv/bin/activate && \
+    uv pip install --force-reinstall --no-build-isolation "git+https://github.com/facebookresearch/pytorch3d.git@stable"
+
+# Seed the conceptgraph package with only the modules required for batch SLAM
+COPY ${PROJECT_DIR}/neuro-nav/conceptgraph/__init__.py /app/neuro-nav/conceptgraph/__init__.py
+
+# Core SLAM entrypoints and helpers
+COPY \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/__init__.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/batch_test_local.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/batch_vlm_mapping.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/mapping.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/slam_classes.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/slam/utils.py \
+    /app/neuro-nav/conceptgraph/slam/
+
+# Utility modules leveraged by the batch pipelines
+COPY \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/__init__.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/general_utils.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/geometry.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/ious.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/logging_metrics.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/model_utils.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/optional_wandb_wrapper.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/vis.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/utils/vlm.py \
+    /app/neuro-nav/conceptgraph/utils/
+
+# Dataset plumbing (Replica loaders + configs)
+COPY \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/__init__.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/conceptgraphs_datautils.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/conceptgraphs_rgbd_images.py \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/datasets_common.py \
+    /app/neuro-nav/conceptgraph/dataset/
+
+COPY \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/dataconfigs/replica/replica.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/dataset/dataconfigs/replica/replica_room0.json \
+    /app/neuro-nav/conceptgraph/dataset/dataconfigs/replica/
+
+# Hydra configs referenced by the batch/local entrypoints
+COPY \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/base.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/base_mapping.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/base_paths.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/batch_test_local.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/batch_vlm_mapping.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/classes.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/logging_level.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/replica.yaml \
+    ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/sam.yaml \
+    /app/neuro-nav/conceptgraph/hydra_configs/
+
+COPY ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/early_exit.json /app/neuro-nav/conceptgraph/hydra_configs/early_exit.json
+COPY ${PROJECT_DIR}/neuro-nav/conceptgraph/hydra_configs/hydra/job_logging/custom_logging_format.yaml /app/neuro-nav/conceptgraph/hydra_configs/hydra/job_logging/custom_logging_format.yaml
+
+# Class metadata used for coloring / filtering
+COPY ${PROJECT_DIR}/neuro-nav/conceptgraph/scannet200_classes.txt /app/neuro-nav/conceptgraph/scannet200_classes.txt
+COPY ${PROJECT_DIR}/neuro-nav/conceptgraph/scannet200_classes_colors.json /app/neuro-nav/conceptgraph/scannet200_classes_colors.json
+
+# Runtime PATH to the venv, and module visibility
+ENV PATH="/app/neuro-nav/.venv/bin:$PATH" \
+    PYTHONPATH=/app/neuro-nav
+
+# Default runtime config via env (override per run).
+# For smoke tests we mount host directories to simulate FSx paths locally:
+#   - /mnt/local-data      → scene archives + Replica dataset
+#   - /mnt/checkpoints     → checkpoint store (read/write)
+#   - /mnt/local-output    → mapping outputs (exps/)
+ENV REPO_ROOT=/app/neuro-nav \
+    DATA_ROOT=/mnt/local-data \
+    DATASET_ROOT=/mnt/local-data/Replica \
+    CKPT_DIR=/mnt/checkpoints \
+    OUTPUT_ROOT=/mnt/local-output \
+    SCENE_ID=room0 \
+    EXP_SUFFIX=batch_vlm \
+    DET_EXP_SUFFIX=s_detections \
+    FORCE_DET=true \
+    MAKE_EDGES=false \
+    SAVE_JSON=true \
+    SAVE_PCD=true \
+    SAVE_SEMANTIC_SNAPSHOT=true \
+    VIS_RENDER=false \
+    DEVICE=cuda \
+    STRIDE=1 \
+    START=0 \
+    END=-1 \
+    PERIODIC_PCD=false \
+    PERIODIC_PCD_INTERVAL=10 \
+    BATCH_MAIN=conceptgraph.slam.batch_vlm_mapping
+
+# Optional: OpenAI key for VLM edges; set in docker run env if you want edges.
+# ENV OPENAI_API_KEY=""
+
+COPY ${PROJECT_DIR}/neuro-nav/gpu-batch-infra/entrypoint_batch_vlm.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD []

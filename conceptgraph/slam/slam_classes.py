@@ -127,20 +127,24 @@ class MapObjectList(DetectionList):
         # return similarities.squeeze()
         return similarities
     
-    def to_serializable(self):
+    def to_serializable(self, include_geometry: bool = True):
         s_obj_list = []
         for obj in self:
             s_obj_dict = copy.deepcopy(obj)
             
             s_obj_dict['clip_ft'] = to_numpy(s_obj_dict['clip_ft'])
             # s_obj_dict['text_ft'] = to_numpy(s_obj_dict['text_ft'])
-            
-            s_obj_dict['pcd_np'] = np.asarray(s_obj_dict['pcd'].points)
-            s_obj_dict['bbox_np'] = np.asarray(s_obj_dict['bbox'].get_box_points())
-            s_obj_dict['pcd_color_np'] = np.asarray(s_obj_dict['pcd'].colors)
-            
-            del s_obj_dict['pcd']
-            del s_obj_dict['bbox']
+
+            if include_geometry:
+                s_obj_dict['pcd_np'] = np.asarray(s_obj_dict['pcd'].points)
+                s_obj_dict['bbox_np'] = np.asarray(s_obj_dict['bbox'].get_box_points())
+                s_obj_dict['pcd_color_np'] = np.asarray(s_obj_dict['pcd'].colors)
+            # Remove non-serializable Open3D handles regardless so downstream consumers
+            # can load the dict without needing Open3D objects present.
+            if 'pcd' in s_obj_dict:
+                del s_obj_dict['pcd']
+            if 'bbox' in s_obj_dict:
+                del s_obj_dict['bbox']
             
             s_obj_list.append(s_obj_dict)
             

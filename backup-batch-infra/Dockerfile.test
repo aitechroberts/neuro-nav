@@ -1,0 +1,18 @@
+FROM public.ecr.aws/docker/library/alpine:3.20
+
+# Minimal test image for ECR tag visibility and Batch smoke tests.
+# Prints environment and sleeps; no GPU or AWS deps required.
+
+ENV RAW_BUCKET="<unset>" \
+    INPUT_KEY="<unset>" \
+    OUTPUT_BUCKET="<unset>" \
+    OUTPUT_NAME="<unset>" \
+    CKPT_DIR="/mnt/ckpts" \
+    SLEEP_SECONDS="3600"
+
+RUN printf '#!/bin/sh\nset -e\n\necho "[gpu-jobs-test] starting..."\nprintenv | sort\n\necho "[gpu-jobs-test] sleeping for ${SLEEP_SECONDS}s"\nsleep "${SLEEP_SECONDS}"\n' > /entrypoint.sh \
+    && chmod +x /entrypoint.sh
+
+WORKDIR /app
+CMD ["/entrypoint.sh"]
+

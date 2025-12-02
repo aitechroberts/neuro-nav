@@ -1,0 +1,92 @@
+name: neuro-nav
+prefect-version: "3.0+"
+
+
+pull:
+  - prefect.deployments.steps.git_clone:
+      id: clone-step
+      repository: "https://github.com/aitechroberts/neuro-nav.git"
+      branch: "main"
+  - prefect.deployments.steps.set_working_directory:
+      directory: "{{ clone-step.directory }}/data-ops-ui/"
+  - prefect.deployments.steps.pip_install_requirements:
+      requirements_file: "flows/requirements.txt"
+
+build: []
+push: []
+
+deployments:
+  - name: "upload-only"
+    entrypoint: "flows/flows.py:gpu_pipeline"
+    parameters:
+      data_mode: "upload"
+      run_batch: false
+      upload_key: "replica/sample.zip"      # placeholder; Streamlit overrides
+      upload_content_b64: ""                # placeholder; Streamlit overrides
+      content_type: null
+      raw_bucket: null
+      output_folder: "default"
+      batch_job_queue: null
+      batch_job_definition_arn: null
+      ecr_repo: ""
+      ecr_tag: ""
+      override_image: false
+    schedule: null
+    work_pool:
+      name: "managed-push"
+    tags: ["ui", "upload"]
+
+  - name: "run-existing"
+    entrypoint: "flows/flows.py:gpu_pipeline"
+    parameters:
+      data_mode: "existing"
+      existing_key: "replica/office0/office0.zip"   # placeholder; UI overrides
+      run_batch: true
+      output_folder: "default"
+      raw_bucket: null
+      batch_job_queue: null
+      batch_job_definition_arn: null
+      ecr_repo: ""
+      ecr_tag: ""
+      override_image: false
+    schedule: null
+    work_pool:
+      name: "managed-push"
+    tags: ["ui", "run"]
+
+  - name: "upload-and-run"
+    entrypoint: "flows/flows.py:gpu_pipeline"
+    parameters:
+      data_mode: "upload"
+      upload_key: "replica/office0/office0.zip"     # placeholder; UI overrides
+      upload_content_b64: ""                        # placeholder; UI overrides
+      content_type: null
+      run_batch: true
+      output_folder: "default"
+      raw_bucket: null
+      batch_job_queue: null
+      batch_job_definition_arn: null
+      ecr_repo: ""
+      ecr_tag: ""
+      override_image: false
+    schedule: null
+    work_pool:
+      name: "managed-push"
+    tags: ["ui", "pipeline"]
+
+  - name: "evaluate-existing"
+    entrypoint: "flows/flows.py:evaluate_results"
+    parameters:
+      input_folder: "default"                # placeholder; UI/CLI overrides
+      finished_bucket: null
+      evaluations_bucket: null
+      batch_job_queue: null
+      evaluation_job_definition_arn: null
+      ecr_repo: ""
+      ecr_tag: ""
+      override_image: false
+      output_folder: "evaluation"
+    schedule: null
+    work_pool:
+      name: "managed-push"
+    tags: ["ui", "evaluation"]

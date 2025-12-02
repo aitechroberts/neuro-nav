@@ -384,6 +384,16 @@ def filter_detections(
         if keep:
             filtered_detections.append(current_det)
 
+    if not filtered_detections:
+        # Nothing survived filtering for this frame: return empty detections and no labels
+        empty_dets = sv.Detections(
+            class_id=np.array([], dtype=np.int64),
+            confidence=np.array([], dtype=np.float32),
+            xyxy=np.zeros((0, 4), dtype=np.float32),
+            mask=np.zeros((0, *detections.mask.shape[1:]), dtype=bool),
+        )
+        return empty_dets, []
+        
     # Unzip the filtered results
     confidences, class_ids, xyxy, masks, indices = zip(*filtered_detections)
     filtered_labels = [given_labels[i] for i in indices]
@@ -742,9 +752,22 @@ def save_edge_json(exp_suffix, exp_out_path, objects, edges):
     print(f"Saved edge JSON to {json_edge_out_path}")
 
 
-def save_pointcloud(exp_suffix, exp_out_path, cfg, objects, obj_classes, latest_pcd_filepath=None, create_symlink=True, edges = None):
+def save_pointcloud(
+    exp_suffix,
+    exp_out_path,
+    cfg,
+    objects,
+    obj_classes,
+    latest_pcd_filepath=None,
+    create_symlink=True,
+    edges=None,
+    *,
+    include_geometry: bool = True,
+    artifact_prefix: str = "pcd",
+):
     """
-    Saves the point cloud data to a .pkl.gz file. Optionally, creates or updates a symlink to the latest saved file.
+    Saves the point cloud (or semantic-only snapshot) to a .pkl.gz file.
+    Optionally, creates or updates a symlink to the latest saved file.
 
     Args:
     - exp_suffix (str): Suffix for the experiment, used in naming the saved file.
@@ -753,11 +776,13 @@ def save_pointcloud(exp_suffix, exp_out_path, cfg, objects, obj_classes, latest_
     - obj_classes: The object classes, assumed to have `get_classes_arr()` and `get_class_color_dict_by_index()` methods.
     - latest_pcd_filepath (Path or str, optional): Path for the symlink to the latest point cloud save. Default is None.
     - create_symlink (bool): Whether to create/update a symlink to the latest save. Default is True.
+    - include_geometry (bool): Keep per-object geometry (point clouds, bbox vertices). Disable for lightweight snapshots.
+    - artifact_prefix (str): Filename prefix (e.g., "pcd", "semantic"). Helps keep multiple artifacts per run.
     """
     print("saving map...")
     # Prepare the results dictionary
     results = {
-        'objects': objects.to_serializable(),
+        'objects': objects.to_serializable(include_geometry=include_geometry),
         'cfg': cfg_to_dict(cfg),
         'class_names': obj_classes.get_classes_arr(),
         'class_colors': obj_classes.get_class_color_dict_by_index(),
@@ -765,7 +790,7 @@ def save_pointcloud(exp_suffix, exp_out_path, cfg, objects, obj_classes, latest_
     }
 
     # Define the save path for the point cloud
-    pcd_save_path = Path(exp_out_path) / f"pcd_{exp_suffix}.pkl.gz"
+    pcd_save_path = Path(exp_out_path) / f"{artifact_prefix}_{exp_suffix}.pkl.gz"
     # Make the directory if it doesn't exist
     pcd_save_path.parent.mkdir(parents=True, exist_ok=True)
 
