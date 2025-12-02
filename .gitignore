@@ -16,7 +16,18 @@ td.json
 outputs
 wandb
 *.pt
+*.pth
+*.safetensors
+*.bin
+*.ckpt
 *.deb
+
+# Model weights and HuggingFace cache
+**/models/
+**/.cache/
+**/checkpoints/
+**/weights/
+~/.cache/huggingface/
 neuro-nav/cuda-keyring_1.1-1_all.deb
 latest_pcd_save
 neuro-nav/latest_pcd_save

@@ -1,0 +1,22 @@
+# VLM-specific requirements for neuro-nav-vlm
+# Install these in addition to the base neuro-nav requirements
+
+# Florence-2 model
+transformers>=4.37.0
+timm>=0.9.0
+
+# Qwen2-VL model  
+qwen-vl-utils>=0.0.1
+accelerate>=0.26.0
+
+# Additional dependencies
+einops>=0.7.0
+torchvision>=0.15.0
+
+# For better inference performance
+bitsandbytes>=0.41.0  # For model quantization if needed
+
+# Optional (install separately if needed):
+# flash-attn>=2.0.0  # For faster attention, requires compilation
+# To install: pip install flash-attn --no-build-isolation
+

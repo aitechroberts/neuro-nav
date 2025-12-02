@@ -1,0 +1,74 @@
+defaults:
+  - base
+  - base_mapping
+  - replica
+  - sam
+  - classes
+  - logging_level
+  - _self_
+
+# Direction 1 Experiment: SEMANTIC MODE (Baseline)
+# This config uses full semantic labels for comparison
+
+# Override to use custom dataset config with limited frames
+dataset_config: ${repo_root}/conceptgraph/dataset/dataconfigs/replica/replica_mini_test.yaml
+
+scene_id: room0
+stride: 3
+
+# Detection settings - REUSE existing to avoid CUDA OOM
+detections_exp_suffix: s_detections_simple_test
+force_detection: false  # CHANGED: Use existing detections, don't reload CLIP
+save_detections: false  # Don't need to save since using existing
+make_edges: false
+
+# Experiment naming
+exp_suffix: r_direction1_semantic
+
+# Visualization - Disabled to avoid RAM and prompt issues
+save_video: false
+save_objects_all_frames: false
+debug_render: false
+vis_render: false
+use_rerun: false  # Disabled: avoid RAM crash and interactive prompts
+save_rerun: false # Disabled: we only need objects.json for comparison
+
+# Use MobileSAM for lower memory usage
+sam_variant: mobile_sam
+
+# Optimized for laptop GPU (8GB VRAM)
+downsample_voxel_size: 0.025
+obj_pcd_max_points: 2000
+
+# CRITICAL: Disable IoU and force GIOU to avoid PyTorch3D
+use_iou: false
+spatial_sim_type: giou
+phys_bias: 0.0
+sim_threshold: 1.2
+
+# Disable PyTorch3D-dependent operations
+denoise_interval: -1
+filter_interval: -1
+merge_interval: -1
+merge_overlap_thresh: -1
+run_denoise_final_frame: false
+run_filter_final_frame: false
+run_merge_final_frame: false
+
+# DBSCAN settings
+dbscan_remove_noise: true
+dbscan_eps: 0.1
+dbscan_min_points: 10
+
+# Object selection criteria
+obj_min_points: 0
+obj_min_detections: 1
+
+# Reduce memory usage
+save_pcd: false
+save_json: true
+
+# Direction 1 Experiment Flag
+use_semantic_labels: true  # SEMANTIC MODE: Use real class names
+
+
