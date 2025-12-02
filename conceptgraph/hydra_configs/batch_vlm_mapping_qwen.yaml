@@ -5,18 +5,21 @@ defaults:
   - sam
   - classes
   - logging_level
-  - prompts
+  - prompts        # ← Loads prompts.yaml (cfg.prompts.caption, etc.)
   - _self_
 
 # Detection experiment and mapping experiment labels
-detections_exp_suffix: s_detections_batch
+detections_exp_suffix: s_detections_qwen
 force_detection: !!bool True
 save_detections: !!bool False
 
-# VLM edges/captions (env-overridable)
+# VLM edges/captions using Qwen3-VL (fully local)
 make_edges: ${oc.env:MAKE_EDGES,true}
 
-# Output controls (env-overridable)
+# Qwen3-VL model configuration
+qwen_model: "Qwen/Qwen3-VL-2B-Instruct"
+
+# Output controls
 save_json: ${oc.env:SAVE_JSON,true}
 save_pcd: ${oc.env:SAVE_PCD,true}
 save_semantic_snapshot: ${oc.env:SAVE_SEMANTIC_SNAPSHOT,true}
@@ -24,7 +27,7 @@ vis_render: ${oc.env:VIS_RENDER,false}
 
 # Frame sampling
 stride: 10
-exp_suffix: batch_vlm
+exp_suffix: batch_qwen
 
 # Optional output redirection
 output_root: ${oc.env:OUTPUT_ROOT,}
@@ -56,4 +59,4 @@ obj_min_detections: 1
 use_rerun: !!bool False
 save_rerun: !!bool False
 
-use_wandb: ${oc.env:USE_WANDB,true}
+use_wandb: ${oc.env:USE_WANDB,false}

@@ -93,3 +93,28 @@ python evaluations/eval_text_vlm.py \
     --candidate_suffix vlm_run_v1
 ```
 
+
+
+## Extended What This Gives You
+
+| Evaluation Level | What's Compared | Captures |
+|------------------|-----------------|----------|
+| **Object Captions** | Node descriptions only | Object recognition quality |
+| **Triplets** | `[class] caption | relation | [class] caption` | Relational understanding |
+| **Combined** | Both pooled together | Full scene graph semantics |
+
+---
+
+## Example Output
+```
+=== Object Caption Metrics (Nodes) ===
+  CIDEr Recall: 0.7234, Precision: 0.6891
+  SPICE Recall: 0.5123, Precision: 0.4892
+
+=== Triplet Metrics (Node-Edge-Node) ===
+  CIDEr Recall: 0.6012, Precision: 0.5543
+  SPICE Recall: 0.4201, Precision: 0.3987
+
+=== Combined Metrics (Objects + Triplets) ===
+  CIDEr Recall: 0.6623, Precision: 0.6217
+  SPICE Recall: 0.4662, Precision: 0.4440
