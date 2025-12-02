@@ -96,12 +96,11 @@ class PaliGemmaClient:
         model_name: str = "google/paligemma-3b-mix-224",
         device: str = None,
         prompts: Optional[Any] = None,
+        load_model: bool = True,
     ):
-        from transformers import AutoProcessor, PaliGemmaForConditionalGeneration
-        
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
-        
+
         self.device = device
         self.model_name = model_name
 
@@ -117,14 +116,20 @@ class PaliGemmaClient:
                 self.prompts = dict(prompts)
         # ------------------------------------------------
 
-        print(f"[PaliGemma] Loading model: {model_name}")
-        self.processor = AutoProcessor.from_pretrained(model_name)
-        self.model = PaliGemmaForConditionalGeneration.from_pretrained(
-            model_name,
-            torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
-        ).to(self.device).eval()
-        
-        print(f"[PaliGemma] Model loaded on {self.device}")
+        self.processor = None
+        self.model = None
+
+        if load_model:
+            from transformers import AutoProcessor, PaliGemmaForConditionalGeneration
+
+            print(f"[PaliGemma] Loading model: {model_name}")
+            self.processor = AutoProcessor.from_pretrained(model_name)
+            self.model = PaliGemmaForConditionalGeneration.from_pretrained(
+                model_name,
+                torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+            ).to(self.device).eval()
+
+            print(f"[PaliGemma] Model loaded on {self.device}")
     def generate(
         self,
         image: Image.Image,
@@ -134,6 +139,10 @@ class PaliGemmaClient:
         """
         Generate text from image and prompt.
         """
+        if self.processor is None or self.model is None:
+            raise RuntimeError(
+                "PaliGemma processor/model not initialized; set load_model=True when constructing the client."
+            )
         try:
             # Ensure PaliGemma sees an image token when we pass both text + image
             # but do NOT force this if the prompt already has one.
@@ -321,33 +330,55 @@ _paligemma_client: Optional[PaliGemmaClient] = None
 
 class Qwen3VLClient(PaliGemmaClient):
     """
-    Thin wrapper over PaliGemmaClient, but with a Qwen-specific generate() that
-    uses chat-style messages instead of PaliGemma's <image> token trick.
+    Lightweight client for Qwen3-VL that mirrors the PaliGemmaClient interface.
+
+    The core difference is the chat-style prompt construction that relies on the
+    processor's chat template to insert the correct vision start/end tokens so
+    that image features align with image tokens during generation.
     """
+
     def __init__(
         self,
         model_name: str = "Qwen/Qwen3-VL-2B-Instruct",
-        device: str = "cuda",
+        device: Optional[str] = None,
         max_new_tokens: int = 128,
         temperature: float = 0.0,
         top_p: float = 1.0,
+        prompts: Optional[Any] = None,
     ):
         from transformers import AutoProcessor, AutoModelForVision2Seq
 
-        # still reuse the base init for common fields (device, temperatures, etc.)
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.device = device
+        self.model_name = model_name
+        self.max_new_tokens = max_new_tokens
+        self.temperature = temperature
+        self.top_p = top_p
+
+        # Store prompts (keeps compatibility with PaliGemma helper methods)
         super().__init__(
             model_name=model_name,
             device=device,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_p=top_p,
+            prompts=prompts,
+            load_model=False,
         )
 
-        # But replace processor/model with Qwen ones
-        self.processor = AutoProcessor.from_pretrained(model_name)
-        self.model = AutoModelForVision2Seq.from_pretrained(model_name)
-        self.model.to(self.device)
+        torch_dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+        self.processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
+        self.model = AutoModelForVision2Seq.from_pretrained(
+            model_name,
+            torch_dtype=torch_dtype,
+            trust_remote_code=True,
+        ).to(self.device)
         self.model.eval()
+
+        # Qwen-specific generation defaults
+        self.max_new_tokens = max_new_tokens
+        self.temperature = temperature
+        self.top_p = top_p
+
         print(f"[Qwen3VL] Model loaded on {self.device}")
 
     def generate(
@@ -389,13 +420,15 @@ class Qwen3VLClient(PaliGemmaClient):
                 add_generation_prompt=True,
             )
         else:
-            # Fallback: just concatenate text (won't be as good, but safe)
-            chat_prompt = prompt
+            # Fallback: explicitly include the vision start/end tokens that
+            # Qwen expects around the image placeholder.
+            chat_prompt = f"<|vision_start|><|image|><|vision_end|>\n{prompt}"
 
-        # 3) Prepare multimodal inputs
+        # 3) Prepare multimodal inputs (always pass lists so image order matches
+        #    placeholders in the chat prompt)
         inputs = self.processor(
-            text=chat_prompt,
-            images=image,
+            text=[chat_prompt],
+            images=[image],
             return_tensors="pt",
         ).to(self.device)
 
