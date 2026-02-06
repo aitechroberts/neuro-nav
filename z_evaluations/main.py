@@ -1,5 +1,5 @@
 def main():
-    print("Hello from neuro-nav!")
+    print("Hello from z-evaluations!")
 
 
 if __name__ == "__main__":

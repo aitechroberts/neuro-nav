@@ -1,0 +1,35 @@
+# prompts_qwen.yaml
+# Optimized for Qwen3-VL (Chat-based VLM)
+
+# 1. CAPTIONING
+# Qwen doesn't need "system prompts" in the same way. We use a direct instruction.
+caption: "You are a helpful assistant describing objects in an image."
+
+# This template is crucial. It connects the visual ID (drawn on image) to the request.
+captions_with_labels: >
+  In this image, objects are marked with bounding boxes and numeric IDs.
+  Describe each object listed below.
+  
+  Objects to describe:
+  {labels}
+  
+  Format your response as a list of Python dictionaries:
+  [{"id": "0", "name": "...", "caption": "..."}, ...]
+
+# 2. RELATIONS
+relation: "You are an expert at spatial reasoning."
+
+relations_with_labels: >
+  In this image, objects are marked with numeric IDs.
+  Describe the spatial relationships between these specific objects: {labels}.
+  
+  Return a list of tuples like: [("id1", "relationship", "id2")]
+
+# 3. CONSOLIDATION
+consolidate: "You are a helpful assistant."
+
+consolidate_prompt: >
+  Consolidate these multiple descriptions of the same object into one concise sentence:
+  {captions}
+  
+  Return only the consolidated sentence as a JSON: {"consolidated_caption": "..."}

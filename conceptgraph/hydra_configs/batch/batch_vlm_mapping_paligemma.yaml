@@ -5,7 +5,7 @@ defaults:
   - sam
   - classes
   - logging_level
-  - prompts        # ← Loads prompts.yaml (cfg.prompts.caption, etc.)
+  - prompts_paligemma       
   - _self_
 
 # Detection experiment and mapping experiment labels
@@ -17,8 +17,8 @@ save_detections: !!bool False
 make_edges: ${oc.env:MAKE_EDGES,true}
 
 # PaliGemma model configuration
-# Options: "google/paligemma-3b-mix-224", "google/paligemma-3b-mix-448"
-paligemma_model: "google/paligemma2-3b-mix-224"
+# Options: "google/paligemma2-3b-pt-448", "google/paligemma2-3b-mix-896"
+paligemma_model: "google/paligemma2-3b-mix-448"
 
 # Output controls
 save_json: ${oc.env:SAVE_JSON,true}

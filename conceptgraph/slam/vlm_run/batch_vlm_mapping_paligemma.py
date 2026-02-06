@@ -90,8 +90,8 @@ torch.set_grad_enabled(False)
 # =============================================================================
 
 def make_vlm_edges_and_captions_paligemma(
-    image: Image.Image,
-    detections,
+    image: np.ndarray,  # Accepts the cv2/numpy image from the main loop
+    detections: sv.Detections,
     obj_classes,
     detection_class_labels: List[str],
     paligemma: PaliGemmaClient,
@@ -99,46 +99,58 @@ def make_vlm_edges_and_captions_paligemma(
     make_edges: bool = True,
 ):
     """
-    Paligemma analogue of `make_vlm_edges_and_captions` used in rerun_realtime_mapping.py.
-
-    We:
-      * Call Paligemma ONCE per frame for captions, to get a list of
-        {"id", "name", "caption} dicts.
-      * Optionally call Paligemma ONCE per frame for relations, to get
-        a list of (obj1_id, relation, obj2_id) triples.
-
-    Returns
-    -------
-    labels:      List[str]                 # same as detection_class_labels
-    edges:       List[Tuple[str,str,str]]  # triples of string ids + relation
-    edge_image:  Optional[np.ndarray]      # we don't generate one here, so None
-    captions:    List[Dict[str,str]]       # list of {id, name, caption}
+    Annotates the frame with bounding boxes and IDs, then calls PaliGemma 
+    to generate captions and (optionally) edges.
     """
-    # These are the text labels that the prompts refer to.
-    labels = detection_class_labels
+    # 1. Setup Annotators
+    # We use a BoxAnnotator for the colored outlines and a LabelAnnotator for the IDs.
+    # This creates the "visual prompt" that PaliGemma expects.
+    box_annotator = sv.BoxAnnotator(thickness=2)
+    label_annotator = sv.LabelAnnotator(
+        text_scale=0.5,
+        text_thickness=1,
+        text_padding=5,
+        text_position=sv.Position.CENTER, # Center the ID in the box
+        color=sv.ColorPalette.DEFAULT
+    )
 
-    # 1. Captions: 1 VLM call per frame
+    # 2. Create Numeric Labels (e.g., "0", "1", "2")
+    # These must match the indices in the detection_class_labels list.
+    numeric_labels = [str(i) for i in range(len(detections.xyxy))]
+
+    # 3. Annotate the Image
+    # We copy the image to avoid modifying the original frame buffer
+    annotated_frame = image.copy()
+    annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=detections)
+    annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=numeric_labels)
+
+    # 4. Convert to PIL (RGB) for PaliGemma
+    # PaliGemma expects a PIL Image in RGB format.
+    pil_annotated_image = Image.fromarray(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))
+
+    # 5. Generate Captions
+    # We pass the *annotated* image and the *text* labels.
+    # The VLM sees the ID "0" on the image and matches it to "chair 0" in the text list.
     captions = paligemma.caption_objects_with_labels(
-        image=image,
-        labels=labels,
+        image=pil_annotated_image,
+        labels=detection_class_labels,
         caption_system_prompt=str(cfg.caption),
         captions_with_labels_template=str(cfg.captions_with_labels),
     )
 
-    # 2. Relations: optionally, another VLM call per frame
+    # 6. Generate Relations (Edges) - Optional
     edges: List[Tuple[str, str, str]] = []
     if make_edges:
         edges = paligemma.infer_relations_with_labels(
-            image=image,
-            labels=labels,
+            image=pil_annotated_image,
+            labels=detection_class_labels,
             relation_system_prompt=str(cfg.relation),
             relations_with_labels_template=str(cfg.relations_with_labels),
         )
 
-    # We’re not creating an overlay image of edges here.
-    edge_image = None
-
-    return labels, edges, edge_image, captions
+    # Return the same tuple format as the original function
+    # We return the annotated_frame as 'edge_image' so you can save/visualize it if needed
+    return detection_class_labels, edges, annotated_frame, captions
 
 
 # =============================================================================
@@ -237,7 +249,7 @@ def main(cfg: DictConfig):
         sam_predictor = SAM(sam_weights)
 
         # CLIP (still needed for visual similarity)
-    model_name = "hf-hub:timm/PE-Core-T-16-384"
+    model_name = "hf-hub:timm/PE-Core-B-16"
 
     if ckpt_dir and os.path.exists(ckpt_dir):
         hf_cache_dir = os.path.join(ckpt_dir, "huggingface")
@@ -266,7 +278,7 @@ def main(cfg: DictConfig):
     # =========================================================================
     paligemma = None
     if cfg.make_edges:
-        paligemma_model_name = cfg.get("paligemma_model", "google/paligemma2-3b-mix-224")
+        paligemma_model_name = cfg.get("paligemma_model", "google/paligemma2-3b-mix-448")
         
         # Get prompts from config (loaded via defaults: [prompts])
         # cfg.prompts comes from prompts.yaml
