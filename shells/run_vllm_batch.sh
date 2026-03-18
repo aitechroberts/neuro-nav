@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # =============================================================================
-# vLLM Container API Batch Processing Script
+# vLLM Native Serve Batch Processing Script
 #
-# Runs one VLM model at a time inside a vLLM Docker container, processes
-# scenes via batch_vlm_mapping_api.py, then tears down the container.
+# Runs one VLM model at a time via native vllm serve (subprocess), processes
+# scenes via batch_vlm_mapping_api.py, then tears down the vLLM server.
 #
 # Usage:
 #   ./shells/run_vllm_batch.sh
@@ -20,12 +20,11 @@ set -euo pipefail
 # HuggingFace model ID -- the single variable to change between experiments
 VLM_MODEL="${VLM_MODEL:-Qwen/Qwen3-VL-2B-Instruct}"
 
-# Container settings
-VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai:latest}"
+# vLLM serve settings
+VLLM_CMD="${VLLM_CMD:-uv run vllm serve}"
 VLLM_PORT="${VLLM_PORT:-8000}"
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.4}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"
-CONTAINER_NAME="${CONTAINER_NAME:-vllm-$(echo "${VLM_MODEL}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')}"
 
 # Prompt config: "prompts_standard" for capable VLMs, "prompts_compact" for smaller ones
 PROMPT_CONFIG="${PROMPT_CONFIG:-prompts_standard}"
@@ -63,7 +62,7 @@ SAVE_SEMANTIC_SNAPSHOT="${SAVE_SEMANTIC_SNAPSHOT:-true}"
 VIS_RENDER="${VIS_RENDER:-false}"
 USE_WANDB="${USE_WANDB:-false}"
 
-# Container health check
+# Server health check
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-300}"
 HEALTH_INTERVAL="${HEALTH_INTERVAL:-5}"
 
@@ -74,16 +73,23 @@ AWS_PROFILE="${AWS_PROFILE:-acct2}"
 # Python interpreter
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
-# HuggingFace cache (mounted into the container for model caching)
+# HuggingFace cache (used via HF_HOME for model downloads)
 HF_CACHE="${HF_CACHE:-${HOME}/.cache/huggingface}"
 
 # ---------------------------------------------------------------------------
 # Sanity Checks
 # ---------------------------------------------------------------------------
 
-if ! command -v docker >/dev/null 2>&1; then
-    echo "[vllm-batch] ERROR: docker is not installed or not in PATH."
-    exit 1
+if [[ "${VLLM_CMD}" == *"uv run"* ]]; then
+    if ! uv run vllm --help >/dev/null 2>&1; then
+        echo "[vllm-batch] ERROR: vllm not found. Run 'uv add vllm' or ensure vllm is in the project venv."
+        exit 1
+    fi
+else
+    if ! command -v vllm >/dev/null 2>&1; then
+        echo "[vllm-batch] ERROR: vllm not found in PATH. Set VLLM_CMD='uv run vllm serve' to use project venv."
+        exit 1
+    fi
 fi
 
 if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
@@ -105,8 +111,7 @@ echo "=================================================================="
 echo "[vllm-batch] Configuration"
 echo "=================================================================="
 echo "  Model:           ${VLM_MODEL}"
-echo "  Container:       ${CONTAINER_NAME}"
-echo "  vLLM Image:      ${VLLM_IMAGE}"
+echo "  vLLM command:    ${VLLM_CMD}"
 echo "  GPU Mem Util:    ${GPU_MEM_UTIL}"
 echo "  Max Model Len:   ${MAX_MODEL_LEN}"
 echo "  Port:            ${VLLM_PORT}"
@@ -116,37 +121,37 @@ echo "  Scenes:          ${SCENES}"
 echo "=================================================================="
 
 # ---------------------------------------------------------------------------
-# 1. Start vLLM Docker Container
+# 1. Start vLLM Serve (native subprocess)
 # ---------------------------------------------------------------------------
 
-cleanup_container() {
-    echo "[vllm-batch] Stopping and removing container: ${CONTAINER_NAME}..."
-    docker stop "${CONTAINER_NAME}" 2>/dev/null || true
-    docker rm "${CONTAINER_NAME}" 2>/dev/null || true
+VLLM_PID=""
+VLLM_LOG=""
+cleanup_vllm() {
+    if [[ -n "${VLLM_PID:-}" ]] && kill -0 "${VLLM_PID}" 2>/dev/null; then
+        echo "[vllm-batch] Stopping vLLM serve (PID ${VLLM_PID})..."
+        kill "${VLLM_PID}" 2>/dev/null || true
+        wait "${VLLM_PID}" 2>/dev/null || true
+    fi
+    [[ -n "${VLLM_LOG:-}" ]] && rm -f "${VLLM_LOG}"
 }
-
-# Remove any stale container with the same name
-cleanup_container
-
-echo "[vllm-batch] Starting vLLM container for ${VLM_MODEL}..."
+trap cleanup_vllm EXIT INT TERM
 
 mkdir -p "${HF_CACHE}"
+export HF_HOME="${HF_CACHE}"
+export HUGGING_FACE_HUB_TOKEN="${HUGGING_FACE_HUB_TOKEN:-}"
 
-docker run -d \
-    --name "${CONTAINER_NAME}" \
-    --gpus all \
-    --shm-size 4g \
-    -p "${VLLM_PORT}:8000" \
-    -v "${HF_CACHE}:/root/.cache/huggingface" \
-    -e "HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}" \
-    "${VLLM_IMAGE}" \
-    --model "${VLM_MODEL}" \
+cd "${REPO_ROOT}"
+VLLM_LOG=$(mktemp)
+echo "[vllm-batch] Starting vLLM serve for ${VLM_MODEL}..."
+${VLLM_CMD} --model "${VLM_MODEL}" --port "${VLLM_PORT}" \
     --gpu-memory-utilization "${GPU_MEM_UTIL}" \
     --max-model-len "${MAX_MODEL_LEN}" \
     --trust-remote-code \
-    --dtype auto
+    --dtype auto \
+    > "${VLLM_LOG}" 2>&1 &
+VLLM_PID=$!
 
-echo "[vllm-batch] Container started. Waiting for health check..."
+echo "[vllm-batch] vLLM serve started. Waiting for health check..."
 
 # ---------------------------------------------------------------------------
 # 2. Wait for /health Endpoint
@@ -167,9 +172,9 @@ done
 
 if [[ ${ELAPSED} -ge ${HEALTH_TIMEOUT} ]]; then
     echo "[vllm-batch] ERROR: Server did not become healthy within ${HEALTH_TIMEOUT}s."
-    echo "[vllm-batch] Container logs:"
-    docker logs --tail 50 "${CONTAINER_NAME}"
-    cleanup_container
+    echo "[vllm-batch] Last 50 lines of vLLM output:"
+    tail -50 "${VLLM_LOG}"
+    cleanup_vllm
     exit 1
 fi
 
@@ -256,11 +261,11 @@ for SCENE in "${SCENE_ARRAY[@]}"; do
 done
 
 # ---------------------------------------------------------------------------
-# 4. Tear Down Container
+# 4. Teardown
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "[vllm-batch] All scenes processed. Tearing down container..."
-cleanup_container
+echo "[vllm-batch] All scenes processed. Stopping vLLM serve..."
+# Trap handles cleanup on exit
 
 echo "[vllm-batch] Complete. Model: ${VLM_MODEL}, Scenes: ${SCENES}"

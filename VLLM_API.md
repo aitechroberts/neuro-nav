@@ -1,14 +1,14 @@
-# vLLM Container API Integration
+# vLLM API Integration
 
-## Why Containerized VLMs?
+## Why API-Based VLMs?
 
-Instead of deeply integrating each VLM model into the Python codebase (loading transformers models directly, handling Flash Attention, managing VRAM conflicts), we serve models inside a **vLLM Docker container** behind an OpenAI-compatible API. This gives us:
+Instead of deeply integrating each VLM model into the Python codebase (loading transformers models directly, handling Flash Attention, managing VRAM conflicts), we serve models via **vLLM** behind an OpenAI-compatible API. This gives us:
 
 - **One client for all models** -- `VLMAPIClient` replaces model-specific clients (`vlm_qwen.py`, `vlm_gemma.py`, etc.)
-- **vLLM handles optimization** -- Flash Attention, continuous batching, KV cache management, and tensor parallelism are all handled inside the container
+- **vLLM handles optimization** -- Flash Attention, continuous batching, KV cache management, and tensor parallelism are all handled by the vLLM server
 - **Easy model swapping** -- change one variable (`VLM_MODEL`) to switch between any supported VLM
-- **VRAM isolation** -- the container manages its own GPU memory budget via `--gpu-memory-utilization`
-- **Jetson deployment** -- the same API pattern works on a Jetson Orin Nano Super with vLLM's ARM containers
+- **VRAM isolation** -- the vLLM server manages its own GPU memory budget via `--gpu-memory-utilization`
+- **Jetson deployment** -- the same API pattern works on a Jetson Orin Nano Super with a native vLLM install (no Docker required)
 
 ## Architecture
 
@@ -27,7 +27,7 @@ flowchart TB
     BatchScript --> APIClient
   end
 
-  subgraph container ["vLLM Docker Container"]
+  subgraph server ["vLLM Server"]
     FullModel["Full VLM e.g. Qwen3-VL-2B (~4.5GB)"]
     Endpoint["/v1/chat/completions"]
     FullModel --> Endpoint
@@ -41,8 +41,8 @@ flowchart TB
 1. **YOLO** detects objects in each frame, **SAM** segments them
 2. **TinyCLIP** computes visual/text embeddings for each detection crop
 3. *(Optional)* **VLM Vision Encoder** extracts the VLM's own visual embeddings for comparison research
-4. **VLMAPIClient** sends the annotated frame + labels as a base64 JPEG to the vLLM container
-5. The container runs the full VLM (encoder + LLM) and returns text captions/relations
+4. **VLMAPIClient** sends the annotated frame + labels as a base64 JPEG to the vLLM server
+5. The vLLM server runs the full VLM (encoder + LLM) and returns text captions/relations
 6. Results feed into the ConceptGraphs mapping pipeline (matching, merging, edge processing)
 
 ## File Structure
@@ -62,7 +62,7 @@ neuro-nav/
 │           ├── prompts_standard.yaml   # For capable VLMs (Qwen, InternVL, Gemma 3, etc.)
 │           └── prompts_compact.yaml    # For smaller VLMs (SmolVLM, IDEFICS, Ovis, etc.)
 ├── shells/
-│   └── run_vllm_batch.sh       # Docker lifecycle + scene loop
+│   └── run_vllm_batch.sh       # vLLM serve lifecycle + scene loop
 └── VLLM_API.md                 # This file
 ```
 
@@ -188,7 +188,7 @@ Every VLM on our target list fine-tunes its vision encoder end-to-end during tra
 
 | Component | VRAM | Notes |
 |-----------|------|-------|
-| vLLM container (2B model, 40%) | ~6.4 GB | `--gpu-memory-utilization 0.4` |
+| vLLM server (2B model, 40%) | ~6.4 GB | `--gpu-memory-utilization 0.4` |
 | YOLO-World v2 | ~0.5 GB | Loaded in pipeline |
 | SAM 2.1 Base | ~0.8 GB | Loaded in pipeline |
 | TinyCLIP ViT-8M | ~0.1 GB | Tiny model |
@@ -196,7 +196,7 @@ Every VLM on our target list fine-tunes its vision encoder end-to-end during tra
 | PyTorch overhead | ~0.5 GB | CUDA context, etc. |
 | **Total** | **~8.6 GB** | Leaves headroom for larger KV caches |
 
-To adjust the container's GPU memory share:
+To adjust the vLLM server's GPU memory share:
 
 ```bash
 GPU_MEM_UTIL=0.5 ./shells/run_vllm_batch.sh  # 50% = ~8GB for the model
@@ -218,13 +218,9 @@ For vision encoder extraction support, add the model family to `_FAMILY_PATTERNS
 
 ## Troubleshooting
 
-### Container won't start / immediate exit
+### vLLM serve fails to start
 
-```bash
-docker logs vllm-qwen-qwen3-vl-2b-instruct
-```
-
-Common causes:
+When the health check times out, the script prints the last 50 lines of vLLM output. Common causes:
 - **VRAM OOM**: Reduce `GPU_MEM_UTIL` (e.g., `0.3`)
 - **Model not found**: Check the HuggingFace ID is correct
 - **Auth required**: Set `HUGGING_FACE_HUB_TOKEN` for gated models
@@ -246,12 +242,12 @@ If you see fallback captions like "A chair.", the model may not be following the
 
 ### CUDA out of memory in the Python pipeline
 
-The pipeline (YOLO + SAM + TinyCLIP + encoder) runs alongside the container. If OOM:
+The pipeline (YOLO + SAM + TinyCLIP + encoder) runs alongside the vLLM server. If OOM:
 - Reduce `GPU_MEM_UTIL` to give more room to the pipeline
 - Disable encoder extraction (`EXTRACT_ENCODER=false`)
 - Use a smaller YOLO model or reduce SAM resolution
 
-### Container port conflict
+### Port already in use
 
 ```bash
 VLLM_PORT=8001 ./shells/run_vllm_batch.sh
