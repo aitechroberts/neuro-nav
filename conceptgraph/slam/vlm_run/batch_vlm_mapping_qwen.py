@@ -75,7 +75,7 @@ from conceptgraph.slam.mapping import (
 # =============================================================================
 # Qwen3-VL imports (replaces OpenAI)
 # =============================================================================
-from conceptgraph.utils.vlm_qwen import (
+from conceptgraph.utils.vlms.vlm_qwen import (
     Qwen3VLClient,
     get_qwen3vl_client,
     consolidate_captions,
@@ -279,7 +279,7 @@ def compute_tinyclip_features_batched(
 # Main Entry Point
 # =============================================================================
 
-@hydra.main(version_base=None, config_path="../hydra_configs/", config_name="batch_vlm_mapping_qwen")
+@hydra.main(version_base=None, config_path="../../hydra_configs", config_name="batch/batch_vlm_mapping_qwen")
 def main(cfg: DictConfig):
     tracker = MappingTracker()
 

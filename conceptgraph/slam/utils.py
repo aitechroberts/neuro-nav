@@ -294,7 +294,7 @@ def merge_obj2_into_obj1(obj1, obj2, downsample_voxel_size, dbscan_remove_noise,
     extend_attributes = ['image_idx', 'mask_idx', 'color_path', 'class_id', 'mask', 'xyxy', 'conf', 'contain_number', 'captions']
     add_attributes = ['num_detections', 'num_obj_in_class']
     skip_attributes = ['id', 'class_name', 'is_background', 'new_counter', 'curr_obj_num', 'inst_color']  # 'inst_color' just keeps obj1's
-    custom_handled = ['pcd', 'bbox', 'clip_ft', 'text_ft', 'n_points']
+    custom_handled = ['pcd', 'bbox', 'clip_ft', 'text_ft', 'n_points', 'vlm_vit_ft', 'vlm_proj_ft']
 
     # Check for unhandled keys and throw an error if there are
     all_handled_keys = set(extend_attributes + add_attributes + skip_attributes + custom_handled)
@@ -334,6 +334,11 @@ def merge_obj2_into_obj1(obj1, obj2, downsample_voxel_size, dbscan_remove_noise,
     # Merge and normalize 'clip_ft'
     obj1['clip_ft'] = (obj1['clip_ft'] * n_obj1_det + obj2['clip_ft'] * n_obj2_det) / (n_obj1_det + n_obj2_det)
     obj1['clip_ft'] = F.normalize(obj1['clip_ft'], dim=0)
+
+    for vlm_key in ('vlm_vit_ft', 'vlm_proj_ft'):
+        if obj1.get(vlm_key) is not None and obj2.get(vlm_key) is not None:
+            obj1[vlm_key] = (obj1[vlm_key] * n_obj1_det + obj2[vlm_key] * n_obj2_det) / (n_obj1_det + n_obj2_det)
+            obj1[vlm_key] = F.normalize(obj1[vlm_key], dim=0)
 
     # merge text_ft
     # obj2['text_ft'] = to_tensor(obj2['text_ft'], device)
@@ -886,6 +891,8 @@ def filter_gobs(
         if attribute in ['labels', 'edges', 'text_feats', 'captions']:
             # Note: this statement was used to also exempt 'detection_class_labels' but that causes a bug. It causes the edges to be misalgined with the objects.
             continue
+        elif gobs[attribute] is None:
+            continue
         elif isinstance(gobs[attribute], list):
             gobs[attribute] = [gobs[attribute][i] for i in idx_to_keep]
         elif isinstance(gobs[attribute], np.ndarray):
@@ -1117,6 +1124,8 @@ def make_detection_list_from_pcd_and_gobs(
             'pcd': obj_pcds_and_bboxes[mask_idx]['pcd'],
             'bbox': obj_pcds_and_bboxes[mask_idx]['bbox'],
             'clip_ft': to_tensor(gobs['image_feats'][mask_idx]),
+            'vlm_vit_ft': to_tensor(gobs['vlm_vit_feats'][mask_idx]) if gobs.get('vlm_vit_feats') is not None else None,
+            'vlm_proj_ft': to_tensor(gobs['vlm_proj_feats'][mask_idx]) if gobs.get('vlm_proj_feats') is not None else None,
             # 'text_ft': to_tensor(gobs['text_feats'][mask_idx]),
             'num_obj_in_class': num_obj_in_class,
             'curr_obj_num': tracker.total_object_count,

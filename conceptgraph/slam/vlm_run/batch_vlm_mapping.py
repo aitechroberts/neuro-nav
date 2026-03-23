@@ -30,7 +30,7 @@ import supervision as sv
 from conceptgraph.dataset.datasets_common import get_dataset
 from conceptgraph.utils.logging_metrics import MappingTracker
 from conceptgraph.utils.optional_wandb_wrapper import OptionalWandB
-from conceptgraph.utils.vlm import consolidate_captions, get_openai_client
+from conceptgraph.utils.vlms.vlm import consolidate_captions, get_openai_client
 from conceptgraph.utils.ious import mask_subtract_contained
 # from conceptgraph.utils.vis import (
 #     OnlineObjectRenderer, # REMOVED for headless batch
@@ -109,7 +109,7 @@ def _build_exp_path(base_root: Path, scene_id: str, exp_suffix: str, create: boo
         path.mkdir(parents=True, exist_ok=True)
     return path
 
-@hydra.main(version_base=None, config_path="../hydra_configs/", config_name="batch_vlm_mapping")
+@hydra.main(version_base=None, config_path="../../hydra_configs", config_name="batch/batch_vlm_mapping")
 def main(cfg: DictConfig):
     tracker = MappingTracker()
 

@@ -5,7 +5,7 @@ defaults:
   - sam
   - classes
   - logging_level
-  - prompts_gemma       
+  - /prompts/prompts_gemma@_global_
   - _self_
 
 # Detection experiment and mapping experiment labels

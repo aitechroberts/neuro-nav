@@ -5,7 +5,7 @@ defaults:
   - sam
   - classes
   - logging_level
-  - prompts_paligemma       
+  - /prompts/prompts_paligemma@_global_       
   - _self_
 
 # Detection experiment and mapping experiment labels

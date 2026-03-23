@@ -238,7 +238,7 @@ def compute_tinyclip_features_batched(
 # Main Entry Point
 # =============================================================================
 
-@hydra.main(version_base=None, config_path="../hydra_configs/", config_name="batch_vlm_mapping_api")
+@hydra.main(version_base=None, config_path="../../hydra_configs", config_name="batch_vlm_mapping_api")
 def main(cfg: DictConfig):
     tracker = MappingTracker()
 
@@ -467,9 +467,10 @@ def main(cfg: DictConfig):
             # =================================================================
             # VLM Encoder Features (optional, for embedding comparison)
             # =================================================================
-            vlm_encoder_feats = None
+            vlm_vit_feats = None
+            vlm_proj_feats = None
             if vlm_encoder is not None and image_crops:
-                vlm_encoder_feats = vlm_encoder.encode_crops(image_crops)
+                vlm_vit_feats, vlm_proj_feats = vlm_encoder.encode_crops(image_crops)
 
             tracker.increment_total_detections(len(curr_det.xyxy))
 
@@ -486,7 +487,8 @@ def main(cfg: DictConfig):
                 "labels": labels,
                 "edges": edges,
                 "captions": captions,
-                "vlm_encoder_feats": vlm_encoder_feats,
+                "vlm_vit_feats": vlm_vit_feats,
+                "vlm_proj_feats": vlm_proj_feats,
             }
 
             if cfg.save_detections:

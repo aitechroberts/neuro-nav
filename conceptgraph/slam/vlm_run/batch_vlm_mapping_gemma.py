@@ -68,7 +68,7 @@ from conceptgraph.slam.mapping import (
 # =============================================================================
 # Gemma 3 Imports
 # =============================================================================
-from conceptgraph.utils.vlm_gemma import (
+from conceptgraph.utils.vlms.vlm_gemma import (
     Gemma3Client,
     get_gemma3_client,
     consolidate_captions,
@@ -164,7 +164,7 @@ def _build_exp_path(base_root: Path, scene_id: str, exp_suffix: str, create: boo
 # Main Entry Point
 # =============================================================================
 
-@hydra.main(version_base=None, config_path="../hydra_configs/", config_name="batch_vlm_mapping_gemma")
+@hydra.main(version_base=None, config_path="../../hydra_configs", config_name="batch/batch_vlm_mapping_gemma")
 def main(cfg: DictConfig):
     tracker = MappingTracker()
 

@@ -5,7 +5,7 @@ defaults:
   - sam
   - classes
   - logging_level
-  - prompts_qwen        # ← Loads prompts.yaml (cfg.prompts.caption, etc.)
+  - /prompts/prompts_qwen@_global_
   - _self_
 
 # Detection experiment and mapping experiment labels

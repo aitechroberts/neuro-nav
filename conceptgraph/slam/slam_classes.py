@@ -133,6 +133,10 @@ class MapObjectList(DetectionList):
             s_obj_dict = copy.deepcopy(obj)
             
             s_obj_dict['clip_ft'] = to_numpy(s_obj_dict['clip_ft'])
+            if 'vlm_vit_ft' in s_obj_dict and s_obj_dict['vlm_vit_ft'] is not None:
+                s_obj_dict['vlm_vit_ft'] = to_numpy(s_obj_dict['vlm_vit_ft'])
+            if 'vlm_proj_ft' in s_obj_dict and s_obj_dict['vlm_proj_ft'] is not None:
+                s_obj_dict['vlm_proj_ft'] = to_numpy(s_obj_dict['vlm_proj_ft'])
             # s_obj_dict['text_ft'] = to_numpy(s_obj_dict['text_ft'])
 
             if include_geometry:
@@ -156,6 +160,10 @@ class MapObjectList(DetectionList):
             new_obj = copy.deepcopy(s_obj_dict)
             
             new_obj['clip_ft'] = to_tensor(new_obj['clip_ft'])
+            if 'vlm_vit_ft' in new_obj and new_obj['vlm_vit_ft'] is not None:
+                new_obj['vlm_vit_ft'] = to_tensor(new_obj['vlm_vit_ft'])
+            if 'vlm_proj_ft' in new_obj and new_obj['vlm_proj_ft'] is not None:
+                new_obj['vlm_proj_ft'] = to_tensor(new_obj['vlm_proj_ft'])
             # new_obj['text_ft'] = to_tensor(new_obj['text_ft'])
             
             new_obj['pcd'] = o3d.geometry.PointCloud()
