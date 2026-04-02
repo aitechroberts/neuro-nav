@@ -109,7 +109,7 @@ SCENES="room0 office2" GPU_MEM_UTIL=0.5 ./shells/run_vllm_batch.sh
 | Qwen2.5-VL | `Qwen/Qwen2.5-VL-3B-Instruct` | `prompts_standard` | Full | **Yes** (`model.visual`) | Fine-tuned (end-to-end ViT) | ~6.0 GB |
 | InternVL3 | `OpenGVLab/InternVL3-2B` | `prompts_standard` | Full | **Yes** (`model.vision_model`) | Fine-tuned (InternViT, jointly trained on 150B tokens) | ~4.5 GB |
 | InternVL3.5 | `OpenGVLab/InternVL3_5-2B` | `prompts_standard` | Full | **Yes** (`model.vision_model`) | Fine-tuned (InternViT, jointly trained) | ~4.5 GB |
-| Gemma 3 | `google/gemma-3-4b-it` | `prompts_standard` | Full | **Yes** (`model.vision_tower`) | Fine-tuned (end-to-end SigLIP) | ~8.0 GB |
+| Gemma 3 | `google/gemma-3-1b-it` | `prompts_standard` | Full | **Yes** (`model.vision_tower`) | Fine-tuned (end-to-end SigLIP) | ~2.0 GB |
 | LLaVA-OneVision | `llava-hf/llava-onevision-qwen2-0.5b-ov-hf` | `prompts_standard` | Full | **Yes** (`model.vision_tower`) | Fine-tuned (SigLIP-SO400M, frozen in stage 1 then unfrozen) | ~1.5 GB |
 | CogVLM | `THUDM/cogvlm-chat-hf` | `prompts_standard` | Full | **Yes** (`model.vision_model`) | Fine-tuned (EVA-CLIP ViT + visual expert layers) | ~34 GB |
 | CogVLM2 | `THUDM/cogvlm2-llama3-chat-19B` | `prompts_standard` | Full* | **Yes** (`model.vision_model`) | Fine-tuned (visual expert architecture) | ~38 GB |
@@ -117,7 +117,8 @@ SCENES="room0 office2" GPU_MEM_UTIL=0.5 ./shells/run_vllm_batch.sh
 | MiniCPMv4.5 | `openbmb/MiniCPM-o-2_6` | `prompts_standard` | Full | **Yes** (`model.vpm`) | Fine-tuned (end-to-end) | ~5.0 GB |
 | Ovis2.5 | `AIDC-AI/Ovis2.5-1B` | `prompts_compact` | Full | **Yes** (`model.visual_tokenizer`) | Fine-tuned (VisualTokenizer, custom ViT) | ~2.5 GB |
 | Ovis2 | `AIDC-AI/Ovis2-1B` | `prompts_compact` | Full | **Yes** (`model.visual_tokenizer`) | Fine-tuned (VisualTokenizer) | ~2.5 GB |
-| Ovis1.6 | `AIDC-AI/Ovis1.6-Gemma2-9B` | `prompts_compact` | Full | **Yes** (`model.visual_tokenizer`) | Fine-tuned (VisualTokenizer) | ~18 GB |
+| Ovis2 | `AIDC-AI/Ovis2-2B` | `prompts_compact` | Full | **Yes** (`model.visual_tokenizer`) | Fine-tuned (VisualTokenizer) | ~2.5 GB |
+| Ovis1.6 | `AIDC-AI/Ovis1.6-Llama3.2-3B` | `prompts_compact` | Full | **Yes** (`model.visual_tokenizer`) | Fine-tuned (VisualTokenizer) | ~18 GB |
 | SmolVLM2 2B | `HuggingFaceTB/SmolVLM2-2.2B-Instruct` | `prompts_compact` | Full | **Yes** (`model.vision_model`) | Fine-tuned (SigLIP, multimodal stages) | ~4.5 GB |
 | SmolVLM-500M | `HuggingFaceTB/SmolVLM-500M-Instruct` | `prompts_compact` | Full | **Yes** (`model.vision_model`) | Fine-tuned (SigLIP) | ~1.0 GB |
 | SmolVLM-256M | `HuggingFaceTB/SmolVLM-256M-Instruct` | `prompts_compact` | Full | **Yes** (`model.vision_model`) | Fine-tuned (SigLIP) | ~0.6 GB |

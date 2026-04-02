@@ -554,12 +554,12 @@ def should_exit_early(file_path):
 def save_detection_results(base_path, results):
     base_path.mkdir(exist_ok=True, parents=True)
     for key, value in results.items():
+        if value is None:
+            continue
         save_path = Path(base_path) / f"{key}"
         if isinstance(value, np.ndarray):
-            # Save NumPy arrays using .npz for efficient storage
             np.savez_compressed(f"{save_path}.npz", value)
         else:
-            # For other types, fall back to pickle
             with gzip.open(f"{save_path}.pkl.gz", "wb") as f:
                 pickle.dump(value, f)
                 
@@ -679,30 +679,34 @@ class ObjectClasses:
     
 def save_obj_json(exp_suffix, exp_out_path, objects):
     """
-    Saves the objects to a JSON file with the specified suffix.
+    Saves the objects to a JSON file with the enriched scene graph schema.
 
-    Args:
-    - exp_suffix (str): Suffix for the experiment, used in naming the saved file.
-    - exp_out_path (Path or str): Output path for the experiment's saved files.
-    - objects: The objects to save, assumed to have necessary attributes.
+    Emits: id, object_tag, caption, color, material, candidate_tags,
+    best_entropy, n_views, parent_plane_id, bbox_extent, bbox_center, bbox_volume.
     """
     json_obj_list = {}
     for curr_idx, curr_obj in enumerate(objects):
         obj_key = f"object_{curr_idx + 1}"
-        bbox_extent = [round(val, 2) for val in curr_obj['bbox'].extent]  # Round values to 2 decimal places
-        bbox_center = [round(val, 2) for val in curr_obj['bbox'].center]  # Assuming `center` is an iterable like a list or tuple
-        bbox_volume = round(bbox_extent[0] * bbox_extent[1] * bbox_extent[2], 2)  # Calculate volume and round to 2 decimal places
-        
+        bbox_extent = [round(val, 2) for val in curr_obj['bbox'].extent]
+        bbox_center = [round(val, 2) for val in curr_obj['bbox'].center]
+        bbox_volume = round(bbox_extent[0] * bbox_extent[1] * bbox_extent[2], 2)
+
         obj_dict = {
             "id": curr_obj['curr_obj_num'],
-            "object_tag": curr_obj['class_name'],
-            "object_caption": curr_obj.get('consolidated_caption', None),
+            "object_tag": curr_obj.get('canonical_tag', curr_obj['class_name']),
+            "caption": curr_obj.get('consolidated_caption', None),
+            "color": curr_obj.get('color', None),
+            "material": curr_obj.get('material', None),
+            "candidate_tags": curr_obj.get('candidate_tags', []),
+            "best_entropy": curr_obj.get('best_entropy', None),
+            "n_views": curr_obj.get('num_detections', 1),
+            "parent_plane_id": curr_obj.get('parent_plane_id', None),
             "bbox_extent": bbox_extent,
             "bbox_center": bbox_center,
-            "bbox_volume": bbox_volume  # Add the volume to the dictionary
+            "bbox_volume": bbox_volume,
         }
         json_obj_list[obj_key] = obj_dict
-        
+
     json_obj_out_path = Path(exp_out_path) / f"obj_json_{exp_suffix}.json"
     json_obj_out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(json_obj_out_path, "w") as f:

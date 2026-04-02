@@ -81,14 +81,19 @@ def aggregate_similarities(match_method: str, phys_bias: float, spatial_sim: tor
     return sims
 
 def match_detections_to_objects(
-    agg_sim: torch.Tensor, detection_threshold: float = float('-inf')
+    agg_sim: torch.Tensor,
+    detection_threshold: float = float('-inf'),
+    detection_list: DetectionList = None,
+    objects: MapObjectList = None,
+    use_iou_merge: bool = False,
+    iou_merge_threshold: float = 0.25,
 ) -> List[Optional[int]]:
     """
-    Matches detections to objects based on similarity, returning match indices or None for unmatched.
+    Matches detections to objects based on similarity, with optional 3D IoU fallback.
 
-    Args:
-        agg_sim: Similarity matrix (detections vs. objects).
-        detection_threshold: Threshold for a valid match (default: -inf).
+    Unmatched detections get a second chance: if ``use_iou_merge`` is True and
+    the 3D AABB IoU between the detection and any existing object exceeds
+    ``iou_merge_threshold``, the detection is merged into that object.
 
     Returns:
         List of matching object indices (or None if unmatched) for each detection.
@@ -100,6 +105,18 @@ def match_detections_to_objects(
             match_indices.append(None)
         else:
             match_indices.append(agg_sim[detected_obj_idx].argmax().item())
+
+    if use_iou_merge and detection_list is not None and objects is not None and len(objects) > 0:
+        unmatched = [i for i, m in enumerate(match_indices) if m is None]
+        if unmatched:
+            unmatched_det_list = detection_list.slice_by_indices(unmatched)
+            det_bboxes = unmatched_det_list.get_stacked_values_torch('bbox')
+            obj_bboxes = objects.get_stacked_values_torch('bbox')
+            iou_matrix = compute_3d_iou_accurate_batch(det_bboxes, obj_bboxes)
+            for local_idx, global_idx in enumerate(unmatched):
+                max_iou = iou_matrix[local_idx].max().item()
+                if max_iou > iou_merge_threshold:
+                    match_indices[global_idx] = iou_matrix[local_idx].argmax().item()
 
     return match_indices
 

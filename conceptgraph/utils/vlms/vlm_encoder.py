@@ -57,7 +57,7 @@ def _detect_family(model_name: str) -> str:
 # Per-Family Encoder Extraction Strategies
 # =============================================================================
 
-_QUANT_SUFFIX_RE = re.compile(r'-(AWQ|GPTQ[^/]*)$', re.IGNORECASE)
+_QUANT_SUFFIX_RE = re.compile(r'-(AWQ|GPTQ[^/]*|FP8)$', re.IGNORECASE)
 
 
 def _resolve_base_model(model_name: str) -> str:
@@ -71,12 +71,11 @@ def _load_qwen3vl(model_name, device, dtype):
     if base_name != model_name:
         logger.info(f"[VLM-Encoder] Using base model {base_name} for encoder extraction")
     model = Qwen3VLForConditionalGeneration.from_pretrained(
-        base_name, torch_dtype=dtype, device_map=device,
+        base_name, torch_dtype=dtype, device_map="cpu",
     )
     encoder = model.visual
     processor = AutoProcessor.from_pretrained(base_name)
-    del model.model  # drop the LLM decoder
-    torch.cuda.empty_cache()
+    del model
     return encoder, processor, "qwen3vl"
 
 
@@ -88,10 +87,9 @@ def _load_qwen25vl(model_name, device, dtype):
     model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
         base_name, torch_dtype=dtype, device_map="cpu",
     )
-    encoder = model.visual.to(device)
+    encoder = model.visual  # stays on CPU; shuttled to GPU per-frame
     processor = AutoProcessor.from_pretrained(base_name).image_processor
     del model
-    torch.cuda.empty_cache()
     return encoder, processor, "qwen25vl"
 
 
@@ -209,10 +207,15 @@ class VLMEncoderExtractor:
 
         param_count = sum(p.numel() for p in self.encoder.parameters())
         vram_mb = param_count * (2 if dtype == torch.float16 else 2) / 1e6
-        logger.info(
-            f"[VLM-Encoder] Loaded: {param_count/1e6:.1f}M params (~{vram_mb:.0f}MB)"
-            f"{' (fused merger — will extract both ViT and projected features)' if self._has_merger else ''}"
-        )
+        if self._has_merger:
+            logger.info(
+                f"[VLM-Encoder] Loaded: {param_count/1e6:.1f}M params (~{vram_mb:.0f}MB) "
+                f"(fused merger — CPU-offloaded, shuttled to GPU per frame)"
+            )
+        else:
+            logger.info(
+                f"[VLM-Encoder] Loaded: {param_count/1e6:.1f}M params (~{vram_mb:.0f}MB)"
+            )
 
     # -----------------------------------------------------------------
     # Qwen-family encoding (fused ViT + merger requires grid_thw)
@@ -253,17 +256,22 @@ class VLMEncoderExtractor:
     def _encode_qwen_crops(
         self, crops: List[Image.Image],
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Qwen crops — sequential per image (patches are concatenated so
-        batching would require manual per-image splitting)."""
+        """Qwen crops — sequential per image. Shuttles encoder to GPU for the
+        batch then back to CPU to avoid VRAM contention with vLLM."""
         if not crops:
             empty = np.zeros((0, 1), dtype=np.float32)
             return empty, empty
 
-        vit_list, proj_list = [], []
-        for crop in crops:
-            vit_feat, proj_feat = self._encode_qwen_image(crop)
-            vit_list.append(vit_feat)
-            proj_list.append(proj_feat)
+        self.encoder.to(self.device)
+        try:
+            vit_list, proj_list = [], []
+            for crop in crops:
+                vit_feat, proj_feat = self._encode_qwen_image(crop)
+                vit_list.append(vit_feat)
+                proj_list.append(proj_feat)
+        finally:
+            self.encoder.to("cpu")
+            torch.cuda.empty_cache()
 
         return np.stack(vit_list, axis=0), np.stack(proj_list, axis=0)
 
@@ -376,3 +384,89 @@ class VLMEncoderExtractor:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         logger.info("[VLM-Encoder] Cleanup complete.")
+
+
+# =============================================================================
+# OpenCLIP Encoder (standalone CLIP / SigLIP models)
+# =============================================================================
+
+class OpenCLIPEncoder:
+    """
+    Wraps ``open_clip.create_model_and_transforms`` for standalone CLIP/SigLIP
+    models (e.g. ViT-bigG-14, SigLIP2-SO400M).
+
+    Returns the same ``(vit_feats, proj_feats)`` tuple as :class:`VLMEncoderExtractor`
+    (``proj_feats`` is always ``None`` since standalone CLIP models have no LLM projector).
+    """
+
+    def __init__(self, model_name: str, pretrained: str, device: str = "cuda"):
+        import open_clip
+        self.model_name = model_name
+        self.pretrained = pretrained
+        self.device = device
+
+        logger.info(f"[OpenCLIP] Loading {model_name} (pretrained={pretrained})...")
+        self.model, _, self.preprocess = open_clip.create_model_and_transforms(
+            model_name, pretrained=pretrained,
+        )
+        self.model = self.model.to(device).eval()
+        self.tokenizer = open_clip.get_tokenizer(model_name)
+
+        with torch.no_grad():
+            dummy = torch.zeros(1, 3, 224, 224, device=device)
+            self.feat_dim = self.model.encode_image(dummy).shape[-1]
+
+        param_count = sum(p.numel() for p in self.model.parameters())
+        logger.info(f"[OpenCLIP] Loaded: {param_count/1e6:.1f}M params, dim={self.feat_dim}")
+
+    @torch.no_grad()
+    def encode_crops(
+        self, crops: List[Image.Image],
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """Encode a batch of PIL crops. Returns ``(image_feats, None)``."""
+        if not crops:
+            return np.zeros((0, self.feat_dim), dtype=np.float32), None
+        preprocessed = torch.stack([self.preprocess(c) for c in crops]).to(self.device)
+        feats = self.model.encode_image(preprocessed)
+        feats = F.normalize(feats.float(), dim=-1)
+        return feats.cpu().numpy(), None
+
+    @torch.no_grad()
+    def encode_text(self, texts: List[str]) -> np.ndarray:
+        """Encode a list of text strings. Returns ``(N, D)`` numpy, L2-normalized."""
+        tokens = self.tokenizer(texts).to(self.device)
+        feats = self.model.encode_text(tokens)
+        feats = F.normalize(feats.float(), dim=-1)
+        return feats.cpu().numpy()
+
+    def cleanup(self):
+        if hasattr(self, "model"):
+            del self.model
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        logger.info("[OpenCLIP] Cleanup complete.")
+
+
+# =============================================================================
+# Factory dispatch
+# =============================================================================
+
+def create_encoder(model_id: str, device: str = "cuda") -> "VLMEncoderExtractor | OpenCLIPEncoder":
+    """
+    Factory that returns the appropriate encoder class.
+
+    For OpenCLIP models, ``model_id`` should be ``"openclip:<arch>:<pretrained>"``
+    (e.g. ``"openclip:ViT-bigG-14:laion2b_s39b_b160k"``).
+
+    Everything else is dispatched to :class:`VLMEncoderExtractor` which handles
+    HuggingFace VLM model IDs.
+    """
+    if model_id.startswith("openclip:"):
+        parts = model_id.split(":", 2)
+        if len(parts) != 3:
+            raise ValueError(
+                f"OpenCLIP model_id must be 'openclip:<arch>:<pretrained>', got '{model_id}'"
+            )
+        _, arch, pretrained = parts
+        return OpenCLIPEncoder(arch, pretrained, device)
+    return VLMEncoderExtractor(model_id, device)

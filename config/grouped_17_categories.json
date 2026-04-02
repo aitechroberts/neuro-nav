@@ -1,0 +1,19 @@
+{
+  "seating": ["chair", "armchair", "sofa", "couch", "stool", "bench"],
+  "table_surface": ["table", "desk", "counter", "kitchen island", "nightstand"],
+  "storage": ["cabinet", "shelf", "bookshelf", "dresser", "wardrobe", "rack"],
+  "bed_sleep": ["bed", "pillow", "cushion", "mattress"],
+  "appliance_kitchen": ["fridge", "oven", "stove", "microwave", "dishwasher", "washing machine"],
+  "appliance_bath": ["toilet", "sink", "shower", "bathtub"],
+  "lighting": ["lamp", "ceiling light", "chandelier", "sconce"],
+  "electronics": ["tv", "monitor", "laptop", "computer", "keyboard", "phone"],
+  "decor": ["painting", "vase", "plant", "clock", "mirror", "sculpture"],
+  "textile": ["curtain", "blinds", "rug", "mat", "towel", "blanket"],
+  "container": ["basket", "box", "bowl", "bottle", "plate"],
+  "door_window": ["door", "window"],
+  "structural_horizontal": ["floor", "ceiling"],
+  "structural_vertical": ["wall"],
+  "book_media": ["book", "magazine"],
+  "fixture": ["fan", "fireplace", "pedestal", "railing"],
+  "other": []
+}

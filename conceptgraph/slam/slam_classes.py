@@ -137,18 +137,21 @@ class MapObjectList(DetectionList):
                 s_obj_dict['vlm_vit_ft'] = to_numpy(s_obj_dict['vlm_vit_ft'])
             if 'vlm_proj_ft' in s_obj_dict and s_obj_dict['vlm_proj_ft'] is not None:
                 s_obj_dict['vlm_proj_ft'] = to_numpy(s_obj_dict['vlm_proj_ft'])
-            # s_obj_dict['text_ft'] = to_numpy(s_obj_dict['text_ft'])
+
+            if 'per_view_clip_ft' in s_obj_dict and s_obj_dict['per_view_clip_ft'] is not None:
+                s_obj_dict['per_view_clip_ft'] = [to_numpy(ft) for ft in s_obj_dict['per_view_clip_ft']]
 
             if include_geometry:
                 s_obj_dict['pcd_np'] = np.asarray(s_obj_dict['pcd'].points)
                 s_obj_dict['bbox_np'] = np.asarray(s_obj_dict['bbox'].get_box_points())
                 s_obj_dict['pcd_color_np'] = np.asarray(s_obj_dict['pcd'].colors)
-            # Remove non-serializable Open3D handles regardless so downstream consumers
-            # can load the dict without needing Open3D objects present.
+
             if 'pcd' in s_obj_dict:
                 del s_obj_dict['pcd']
             if 'bbox' in s_obj_dict:
                 del s_obj_dict['bbox']
+            if 'mask' in s_obj_dict:
+                del s_obj_dict['mask']
             
             s_obj_list.append(s_obj_dict)
             
@@ -164,7 +167,9 @@ class MapObjectList(DetectionList):
                 new_obj['vlm_vit_ft'] = to_tensor(new_obj['vlm_vit_ft'])
             if 'vlm_proj_ft' in new_obj and new_obj['vlm_proj_ft'] is not None:
                 new_obj['vlm_proj_ft'] = to_tensor(new_obj['vlm_proj_ft'])
-            # new_obj['text_ft'] = to_tensor(new_obj['text_ft'])
+
+            if 'per_view_clip_ft' in new_obj and new_obj['per_view_clip_ft'] is not None:
+                new_obj['per_view_clip_ft'] = [to_tensor(ft) for ft in new_obj['per_view_clip_ft']]
             
             new_obj['pcd'] = o3d.geometry.PointCloud()
             new_obj['pcd'].points = o3d.utility.Vector3dVector(new_obj['pcd_np'])

@@ -11,7 +11,26 @@ defaults:
 # Detection experiment and mapping experiment labels
 detections_exp_suffix: s_detections_api
 force_detection: !!bool True
-save_detections: !!bool False
+save_detections: !!bool True
+detection_only: ${oc.env:DETECTION_ONLY,false}
+
+# Matching backbone (OpenCLIP model for visual similarity during mapping)
+matching_model: ${oc.env:MATCHING_MODEL,ViT-bigG-14}
+matching_model_pretrained: ${oc.env:MATCHING_MODEL_PRETRAINED,laion2b_s39b_b160k}
+
+# Crop strategy for CLIP/encoder feature extraction (Bare Necessities Sec 1)
+use_scaled_crop: !!bool True
+crop_scale_factor: 1.5
+
+# Multi-view feature storage (Bare Necessities Sec 2)
+store_per_view_features: !!bool True
+
+# 3D IoU OR-condition for merging (Sparse3DPR Sec 3)
+use_iou_merge: !!bool True
+iou_merge_threshold: 0.25
+
+# View quality metric (MV-ScanQA Sec 15)
+compute_iosa: !!bool False
 
 # VLM edges/captions via vLLM container API
 make_edges: ${oc.env:MAKE_EDGES,true}
@@ -29,8 +48,8 @@ save_pcd: ${oc.env:SAVE_PCD,true}
 save_semantic_snapshot: ${oc.env:SAVE_SEMANTIC_SNAPSHOT,true}
 vis_render: ${oc.env:VIS_RENDER,false}
 
-# Frame sampling
-stride: 10
+# Frame sampling (Bare Necessities Sec 14: stride 50 for dense trajectories)
+stride: 50
 exp_suffix: batch_api
 
 # Optional output redirection

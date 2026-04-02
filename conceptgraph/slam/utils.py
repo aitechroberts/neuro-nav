@@ -291,10 +291,10 @@ def merge_obj2_into_obj1(obj1, obj2, downsample_voxel_size, dbscan_remove_noise,
     tracker.track_merge(obj1, obj2)
     
     # Attributes to be explicitly handled
-    extend_attributes = ['image_idx', 'mask_idx', 'color_path', 'class_id', 'mask', 'xyxy', 'conf', 'contain_number', 'captions']
+    extend_attributes = ['image_idx', 'mask_idx', 'color_path', 'class_id', 'mask', 'xyxy', 'conf', 'contain_number', 'captions', 'n_points_per_view']
     add_attributes = ['num_detections', 'num_obj_in_class']
-    skip_attributes = ['id', 'class_name', 'is_background', 'new_counter', 'curr_obj_num', 'inst_color']  # 'inst_color' just keeps obj1's
-    custom_handled = ['pcd', 'bbox', 'clip_ft', 'text_ft', 'n_points', 'vlm_vit_ft', 'vlm_proj_ft']
+    skip_attributes = ['id', 'class_name', 'is_background', 'new_counter', 'curr_obj_num', 'inst_color']
+    custom_handled = ['pcd', 'bbox', 'clip_ft', 'text_ft', 'n_points', 'vlm_vit_ft', 'vlm_proj_ft', 'per_view_clip_ft', 'iosa_per_view']
 
     # Check for unhandled keys and throw an error if there are
     all_handled_keys = set(extend_attributes + add_attributes + skip_attributes + custom_handled)
@@ -310,6 +310,11 @@ def merge_obj2_into_obj1(obj1, obj2, downsample_voxel_size, dbscan_remove_noise,
     for attr in extend_attributes:
         if attr in obj1 and attr in obj2:
             obj1[attr].extend(obj2[attr])
+
+    # Keep only the last 2 masks to avoid unbounded memory growth;
+    # downstream serialization & evaluation never use historical masks.
+    if 'mask' in obj1 and len(obj1['mask']) > 2:
+        obj1['mask'] = obj1['mask'][-2:]
     
     for attr in add_attributes:
         if attr in obj1 and attr in obj2:
@@ -340,13 +345,11 @@ def merge_obj2_into_obj1(obj1, obj2, downsample_voxel_size, dbscan_remove_noise,
             obj1[vlm_key] = (obj1[vlm_key] * n_obj1_det + obj2[vlm_key] * n_obj2_det) / (n_obj1_det + n_obj2_det)
             obj1[vlm_key] = F.normalize(obj1[vlm_key], dim=0)
 
-    # merge text_ft
-    # obj2['text_ft'] = to_tensor(obj2['text_ft'], device)
-    # obj1['text_ft'] = to_tensor(obj1['text_ft'], device)
-    # obj1['text_ft'] = (obj1['text_ft'] * n_obj1_det +
-    #                    obj2['text_ft'] * n_obj2_det) / (
-    #                    n_obj1_det + n_obj2_det)
-    # obj1['text_ft'] = F.normalize(obj1['text_ft'], dim=0)
+    if obj1.get('per_view_clip_ft') is not None and obj2.get('per_view_clip_ft') is not None:
+        obj1['per_view_clip_ft'].extend(obj2['per_view_clip_ft'])
+
+    if obj1.get('iosa_per_view') is not None and obj2.get('iosa_per_view') is not None:
+        obj1['iosa_per_view'].extend(obj2['iosa_per_view'])
 
     return obj1
 
@@ -538,19 +541,20 @@ def compute_overlap_matrix_general(objects_a: MapObjectList, objects_b = None, d
     bbox_a = objects_a.get_stacked_values_torch('bbox')
     bbox_b = objects_b.get_stacked_values_torch('bbox')
     
-    # def compute_3d_iou_accurate_batch_safe(bbox1, bbox2):
-    #     try:
-    #         return compute_3d_iou_accurate_batch(bbox1, bbox2)
-    #     except ValueError as e:
-    #         if str(e) == "Plane vertices are not coplanar":
-    #             # Log the error or handle it in a way that's appropriate for your application
-    #             print("Non-coplanar boxes detected; returning zero IoU.")
-    #             return torch.zeros((bbox1.size(0), bbox2.size(0)))  # Return a zero IoU matrix
-    #         else:
-    #             raise  # Re-raise other unexpected exceptions
-    # ious = compute_3d_iou_accurate_batch_safe(bbox_a, bbox_b)        
-    
-    ious = compute_3d_iou_accurate_batch(bbox_a, bbox_b) # (m, n)
+    try:
+        ious = compute_3d_iou_accurate_batch(bbox_a, bbox_b)
+    except ValueError as e:
+        if "coplanar" in str(e).lower():
+            import logging
+            logging.getLogger(__name__).warning(
+                "Non-coplanar bounding box detected in IoU batch (%d×%d). "
+                "Returning zero IoU matrix. This usually means a degenerate "
+                "detection slipped through the point-count filter.",
+                bbox_a.size(0), bbox_b.size(0),
+            )
+            ious = torch.zeros((bbox_a.size(0), bbox_b.size(0)))
+        else:
+            raise
 
 
     # Compute the pairwise overlaps
@@ -1101,32 +1105,33 @@ def make_detection_list_from_pcd_and_gobs(
         num_obj_in_class = tracker.curr_class_count[curr_class_name]
         
         
+        n_points = len(obj_pcds_and_bboxes[mask_idx]['pcd'].points)
+        clip_ft_tensor = to_tensor(gobs['image_feats'][mask_idx])
+
         detected_object = {
             'id' : uuid.uuid4(),
-            'image_idx' : [image_idx],                             # idx of the image
-            
-            'mask_idx' : [mask_idx],                         # idx of the mask/detection
-            'color_path' : [color_path],                     # path to the RGB image
-            'class_name' : curr_class_name,                         # global class id for this detection
-            'class_id' : [curr_class_idx],                         # global class id for this detection
-            'captions' : [gobs['captions'][mask_idx]],           # captions for this detection
-            'num_detections' : 1,                            # number of detections in this object
+            'image_idx' : [image_idx],
+            'mask_idx' : [mask_idx],
+            'color_path' : [color_path],
+            'class_name' : curr_class_name,
+            'class_id' : [curr_class_idx],
+            'captions' : [gobs['captions'][mask_idx]],
+            'num_detections' : 1,
             'mask': [gobs['mask'][mask_idx]],
             'xyxy': [gobs['xyxy'][mask_idx]],
             'conf': [gobs['confidence'][mask_idx]],
-            'n_points': len(obj_pcds_and_bboxes[mask_idx]['pcd'].points),
-            # 'pixel_area': [mask.sum()],
-            'contain_number': [None],                          # This will be computed later
-            "inst_color": np.random.rand(3),                 # A random color used for this segment instance
+            'n_points': n_points,
+            'n_points_per_view': [n_points],
+            'contain_number': [None],
+            "inst_color": np.random.rand(3),
             'is_background': is_bg_object,
-            
-            # These are for the entire 3D object
             'pcd': obj_pcds_and_bboxes[mask_idx]['pcd'],
             'bbox': obj_pcds_and_bboxes[mask_idx]['bbox'],
-            'clip_ft': to_tensor(gobs['image_feats'][mask_idx]),
+            'clip_ft': clip_ft_tensor,
+            'per_view_clip_ft': [clip_ft_tensor.clone()] if gobs.get('_store_per_view_features', False) else None,
             'vlm_vit_ft': to_tensor(gobs['vlm_vit_feats'][mask_idx]) if gobs.get('vlm_vit_feats') is not None else None,
             'vlm_proj_ft': to_tensor(gobs['vlm_proj_feats'][mask_idx]) if gobs.get('vlm_proj_feats') is not None else None,
-            # 'text_ft': to_tensor(gobs['text_feats'][mask_idx]),
+            'iosa_per_view': gobs.get('_iosa_per_view_list', [None])[mask_idx:mask_idx+1] if gobs.get('_compute_iosa', False) else None,
             'num_obj_in_class': num_obj_in_class,
             'curr_obj_num': tracker.total_object_count,
             'new_counter' : tracker.brand_new_counter,

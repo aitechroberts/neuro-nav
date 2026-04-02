@@ -26,7 +26,6 @@ from tqdm import trange
 import hydra
 from omegaconf import DictConfig
 import open_clip
-from transformers import CLIPModel, CLIPProcessor
 from ultralytics import YOLO, SAM
 import supervision as sv
 
@@ -34,7 +33,7 @@ from conceptgraph.dataset.datasets_common import get_dataset
 from conceptgraph.utils.logging_metrics import MappingTracker
 from conceptgraph.utils.optional_wandb_wrapper import OptionalWandB
 from conceptgraph.utils.ious import mask_subtract_contained
-from conceptgraph.utils.model_utils import compute_clip_features_batched
+from conceptgraph.utils.model_utils import compute_clip_features_batched  # kept for legacy compatibility
 from conceptgraph.utils.general_utils import (
     ObjectClasses,
     get_det_out_path,
@@ -48,7 +47,8 @@ from conceptgraph.utils.general_utils import (
     cfg_to_dict,
     check_run_detections,
 )
-from conceptgraph.slam.slam_classes import MapEdgeMapping, MapObjectList
+import logging
+from conceptgraph.slam.slam_classes import DetectionList, MapEdgeMapping, MapObjectList
 from conceptgraph.slam.utils import (
     filter_gobs,
     filter_objects,
@@ -163,17 +163,51 @@ def _build_exp_path(base_root: Path, scene_id: str, exp_suffix: str, create: boo
     return path
 
 
-def compute_tinyclip_features_batched(
+def generate_crops(
+    image: Image.Image,
+    detections: sv.Detections,
+    use_scaled_crop: bool = True,
+    crop_scale_factor: float = 1.5,
+    fixed_padding: int = 20,
+) -> List[Image.Image]:
+    """Generate crops for detections using either 1.5x scale or fixed padding."""
+    img_w, img_h = image.size
+    crops = []
+    for idx in range(len(detections.xyxy)):
+        x_min, y_min, x_max, y_max = detections.xyxy[idx]
+        if use_scaled_crop:
+            cx = (x_min + x_max) / 2
+            cy = (y_min + y_max) / 2
+            w = x_max - x_min
+            h = y_max - y_min
+            s = crop_scale_factor
+            x_min_new = max(0, cx - w * s / 2)
+            y_min_new = max(0, cy - h * s / 2)
+            x_max_new = min(img_w, cx + w * s / 2)
+            y_max_new = min(img_h, cy + h * s / 2)
+        else:
+            x_min_new = max(0, x_min - fixed_padding)
+            y_min_new = max(0, y_min - fixed_padding)
+            x_max_new = min(img_w, x_max + fixed_padding)
+            y_max_new = min(img_h, y_max + fixed_padding)
+        crops.append(image.crop((x_min_new, y_min_new, x_max_new, y_max_new)))
+    return crops
+
+
+def compute_matching_features_batched(
     image_rgb_bgr_fixed,
-    detections,
-    clip_model: CLIPModel,
-    clip_processor: CLIPProcessor,
+    detections: sv.Detections,
+    clip_model,
+    clip_preprocess,
+    clip_tokenizer,
     classes,
     device: str,
-    padding: int = 20,
+    clip_feat_dim: int,
+    use_scaled_crop: bool = True,
+    crop_scale_factor: float = 1.5,
 ):
     """
-    Compute TinyCLIP features for each detection.
+    Compute matching features via OpenCLIP for each detection.
 
     Returns:
         image_crops: list[ PIL.Image ]
@@ -182,56 +216,32 @@ def compute_tinyclip_features_batched(
     """
     image = Image.fromarray(image_rgb_bgr_fixed)
 
-    image_crops = []
-    texts = []
-
     if detections.xyxy.shape[0] == 0:
-        return [], np.zeros((0, clip_model.config.projection_dim), dtype=np.float32), \
-               np.zeros((0, clip_model.config.projection_dim), dtype=np.float32)
+        return [], np.zeros((0, clip_feat_dim), dtype=np.float32), \
+               np.zeros((0, clip_feat_dim), dtype=np.float32)
 
-    img_w, img_h = image.size
+    image_crops = generate_crops(
+        image, detections,
+        use_scaled_crop=use_scaled_crop,
+        crop_scale_factor=crop_scale_factor,
+    )
 
+    texts = []
     for idx in range(len(detections.xyxy)):
-        x_min, y_min, x_max, y_max = detections.xyxy[idx]
-
-        left_padding   = min(padding, x_min)
-        top_padding    = min(padding, y_min)
-        right_padding  = min(padding, img_w - x_max)
-        bottom_padding = min(padding, img_h - y_max)
-
-        x_min = x_min - left_padding
-        y_min = y_min - top_padding
-        x_max = x_max + right_padding
-        y_max = y_max + bottom_padding
-
-        crop = image.crop((x_min, y_min, x_max, y_max))
-        image_crops.append(crop)
-
         class_id = int(detections.class_id[idx])
         texts.append(classes[class_id])
 
-    image_inputs = clip_processor(
-        images=image_crops,
-        return_tensors="pt",
-    ).to(device)
-
-    text_inputs = clip_processor(
-        text=texts,
-        padding=True,
-        return_tensors="pt",
-    ).to(device)
+    preprocessed = torch.stack([clip_preprocess(c) for c in image_crops]).to(device)
+    tokens = clip_tokenizer(texts).to(device)
 
     with torch.no_grad():
-        image_features = clip_model.get_image_features(**image_inputs)
-        text_features = clip_model.get_text_features(**text_inputs)
+        image_features = clip_model.encode_image(preprocessed)
+        text_features = clip_model.encode_text(tokens)
 
     image_features = F.normalize(image_features, dim=-1)
     text_features = F.normalize(text_features, dim=-1)
 
-    image_feats = image_features.cpu().numpy()
-    text_feats = text_features.cpu().numpy()
-
-    return image_crops, image_feats, text_feats
+    return image_crops, image_features.cpu().numpy(), text_features.cpu().numpy()
 
 
 # =============================================================================
@@ -295,42 +305,39 @@ def main(cfg: DictConfig):
             print(f"Using local YOLO weights: {yolo_weights}")
         detection_model = measure_time(YOLO)(yolo_weights)
 
-        sam_weights = "sam2.1_b.pt"
+        sam_weights = "sam2.1_s.pt"
         if ckpt_dir and (Path(ckpt_dir) / sam_weights).exists():
             sam_weights = str(Path(ckpt_dir) / sam_weights)
             print(f"Using local SAM weights: {sam_weights}")
         sam_predictor = SAM(sam_weights)
 
     # =========================================================================
-    # CLIP INITIALIZATION (TinyCLIP for visual similarity)
+    # CLIP INITIALIZATION (OpenCLIP matching backbone)
     # =========================================================================
-    clip_model_name = "wkcn/TinyCLIP-ViT-8M-16-Text-3M-YFCC15M"
+    if not cfg.get("detection_only", False):
+        matching_model = cfg.get("matching_model", "ViT-bigG-14")
+        matching_pretrained = cfg.get("matching_model_pretrained", "laion2b_s39b_b160k")
+        print(f"[CLIP] Loading {matching_model} (pretrained={matching_pretrained}) via OpenCLIP...")
 
-    ckpt_dir = os.environ.get("CKPT_DIR", "")
-    if ckpt_dir and os.path.exists(ckpt_dir):
-        hf_cache_dir = os.path.join(ckpt_dir, "huggingface")
-        os.makedirs(hf_cache_dir, exist_ok=True)
-        os.environ["HF_HOME"] = hf_cache_dir
-        print(f"Set HF_HOME to {hf_cache_dir}")
-        cache_dir = hf_cache_dir
+        clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
+            matching_model, pretrained=matching_pretrained,
+        )
+        clip_model = clip_model.to(cfg.device).eval()
+        clip_tokenizer = open_clip.get_tokenizer(matching_model)
+
+        with torch.no_grad():
+            dummy = torch.zeros(1, 3, 224, 224, device=cfg.device)
+            clip_feat_dim = clip_model.encode_image(dummy).shape[-1]
+        print(f"[CLIP] Feature dim: {clip_feat_dim}")
     else:
-        cache_dir = os.environ.get("HF_HOME")
-
-    clip_model = CLIPModel.from_pretrained(
-        clip_model_name,
-        cache_dir=cache_dir,
-    ).to(cfg.device)
-
-    clip_processor = CLIPProcessor.from_pretrained(
-        clip_model_name,
-        cache_dir=cache_dir,
-    )
+        clip_model = clip_preprocess = clip_tokenizer = None
+        clip_feat_dim = 0
 
     # =========================================================================
     # VLM ENCODER (optional, for embedding comparison research)
     # =========================================================================
     vlm_encoder = None
-    if cfg.get("extract_vlm_encoder_feats", False):
+    if not cfg.get("detection_only", False) and cfg.get("extract_vlm_encoder_feats", False):
         print(f"[VLM-Encoder] Loading vision encoder from {cfg.vlm_model_name}...")
         vlm_encoder = VLMEncoderExtractor(cfg.vlm_model_name, cfg.device)
 
@@ -341,7 +348,7 @@ def main(cfg: DictConfig):
         detection_model.set_classes(obj_classes.get_classes_arr())
 
     vlm_client = None
-    if cfg.make_edges:
+    if not cfg.get("detection_only", False) and cfg.make_edges:
         vlm_api_url = cfg.get("vlm_api_url", "http://localhost:8000/v1")
         vlm_model_name = cfg.get("vlm_model_name", "Qwen/Qwen3-VL-2B-Instruct")
 
@@ -453,24 +460,30 @@ def main(cfg: DictConfig):
                 captions = [""] * len(curr_det.xyxy)
 
             # =================================================================
-            # TinyCLIP Features
+            # Matching Backbone Features (OpenCLIP) -- skipped in detection_only mode
             # =================================================================
-            image_crops, image_feats, text_feats = compute_tinyclip_features_batched(
-                image_rgb_bgr_fixed,
-                curr_det,
-                clip_model,
-                clip_processor,
-                obj_classes.get_classes_arr(),
-                cfg.device,
-            )
-
-            # =================================================================
-            # VLM Encoder Features (optional, for embedding comparison)
-            # =================================================================
+            image_crops = []
+            image_feats = None
+            text_feats = None
             vlm_vit_feats = None
             vlm_proj_feats = None
-            if vlm_encoder is not None and image_crops:
-                vlm_vit_feats, vlm_proj_feats = vlm_encoder.encode_crops(image_crops)
+
+            if not cfg.get("detection_only", False):
+                image_crops, image_feats, text_feats = compute_matching_features_batched(
+                    image_rgb_bgr_fixed,
+                    curr_det,
+                    clip_model,
+                    clip_preprocess,
+                    clip_tokenizer,
+                    obj_classes.get_classes_arr(),
+                    cfg.device,
+                    clip_feat_dim,
+                    use_scaled_crop=cfg.get("use_scaled_crop", True),
+                    crop_scale_factor=cfg.get("crop_scale_factor", 1.5),
+                )
+
+                if vlm_encoder is not None and image_crops:
+                    vlm_vit_feats, vlm_proj_feats = vlm_encoder.encode_crops(image_crops)
 
             tracker.increment_total_detections(len(curr_det.xyxy))
 
@@ -493,6 +506,9 @@ def main(cfg: DictConfig):
 
             if cfg.save_detections:
                 save_detection_results(det_exp_pkl_path / color_path.stem, raw_gobs)
+
+            if cfg.get("detection_only", False):
+                continue
         else:
             if os.path.exists(det_exp_pkl_path / color_path.stem):
                 raw_gobs = load_saved_detections(det_exp_pkl_path / color_path.stem)
@@ -522,6 +538,9 @@ def main(cfg: DictConfig):
         gobs = filtered_gobs
         if len(gobs["mask"]) == 0:
             continue
+
+        gobs["_store_per_view_features"] = cfg.get("store_per_view_features", False)
+        gobs["_compute_iosa"] = cfg.get("compute_iosa", False)
 
         gobs["mask"] = mask_subtract_contained(gobs["xyxy"], gobs["mask"])
 
@@ -554,6 +573,18 @@ def main(cfg: DictConfig):
         detection_list = make_detection_list_from_pcd_and_gobs(
             obj_pcds_and_bboxes, gobs, color_path, obj_classes, frame_idx
         )
+
+        MIN_OBJECT_POINTS = 10
+        pre_filter = len(detection_list)
+        detection_list = DetectionList([
+            d for d in detection_list if d.get("n_points", 0) >= MIN_OBJECT_POINTS
+        ])
+        if pre_filter > len(detection_list):
+            logging.warning(
+                "Frame %d: filtered %d/%d degenerate detections (< %d points)",
+                frame_idx, pre_filter - len(detection_list), pre_filter, MIN_OBJECT_POINTS,
+            )
+
         if len(detection_list) == 0:
             continue
 
@@ -579,7 +610,12 @@ def main(cfg: DictConfig):
             visual_sim=visual_sim,
         )
         match_indices = match_detections_to_objects(
-            agg_sim=agg_sim, detection_threshold=cfg["sim_threshold"]
+            agg_sim=agg_sim,
+            detection_threshold=cfg["sim_threshold"],
+            detection_list=detection_list,
+            objects=objects,
+            use_iou_merge=cfg.get("use_iou_merge", False),
+            iou_merge_threshold=cfg.get("iou_merge_threshold", 0.25),
         )
         objects = merge_obj_matches(
             detection_list=detection_list,
@@ -703,6 +739,14 @@ def main(cfg: DictConfig):
         })
 
     # =========================================================================
+    # Detection-only mode: skip all post-loop processing
+    # =========================================================================
+    if cfg.get("detection_only", False):
+        print("[Detection-Only] All frames processed. Detections saved. Exiting early.")
+        owandb.finish()
+        return
+
+    # =========================================================================
     # Caption Consolidation via API
     # =========================================================================
     if cfg.make_edges and vlm_client is not None:
@@ -714,6 +758,31 @@ def main(cfg: DictConfig):
                 obj["consolidated_caption"] = consolidated_caption
             else:
                 obj["consolidated_caption"] = obj.get("class_name", "unknown object")
+
+    # =========================================================================
+    # Save Merge Groupings Artifact
+    # =========================================================================
+    groupings = {}
+    for obj_idx, obj in enumerate(objects):
+        bbox_center = np.asarray(obj['bbox'].get_center()).tolist()
+        bbox_extent = np.asarray(obj['bbox'].get_extent()).tolist()
+        groupings[str(obj['id'])] = {
+            'obj_idx': obj_idx,
+            'class_name': obj['class_name'],
+            'image_idx': obj['image_idx'],
+            'color_path': [str(p) for p in obj['color_path']],
+            'xyxy': [arr.tolist() if hasattr(arr, 'tolist') else arr for arr in obj['xyxy']],
+            'conf': [float(c) if hasattr(c, 'item') else c for c in obj['conf']],
+            'num_detections': obj['num_detections'],
+            'n_points_per_view': obj.get('n_points_per_view', []),
+            'iosa_per_view': obj.get('iosa_per_view', []),
+            'bbox_center': bbox_center,
+            'bbox_extent': bbox_extent,
+        }
+    groupings_path = exp_out_path / "merge_groupings.pkl.gz"
+    with gzip.open(groupings_path, "wb") as f:
+        pickle.dump(groupings, f)
+    print(f"Saved merge groupings ({len(groupings)} objects) to {groupings_path}")
 
     # =========================================================================
     # Final Saves

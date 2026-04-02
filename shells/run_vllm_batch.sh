@@ -18,13 +18,14 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 
 # HuggingFace model ID -- the single variable to change between experiments
-VLM_MODEL="${VLM_MODEL:-Qwen/Qwen2.5-VL-3B-Instruct-AWQ}"
+VLM_MODEL="${VLM_MODEL:-Qwen/Qwen3-VL-2B-Instruct-FP8}"
 
 # vLLM serve settings
+export VLLM_USE_V1=1
 VLLM_CMD="${VLLM_CMD:-uv run vllm serve}"
 VLLM_PORT="${VLLM_PORT:-8000}"
-GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.75}"
-MAX_MODEL_LEN="${MAX_MODEL_LEN:-3072}"
+GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.5}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-2048}"
 
 # Prompt config: "prompts_standard" for capable VLMs, "prompts_compact" for smaller ones
 PROMPT_CONFIG="${PROMPT_CONFIG:-prompts_standard}"
@@ -44,14 +45,14 @@ REPLICA_DATASET_CONFIG="${REPO_ROOT}/conceptgraph/dataset/dataconfigs/replica/re
 SCANNET_DATASET_CONFIG="${REPO_ROOT}/conceptgraph/dataset/dataconfigs/scannet/base.yaml"
 
 # Scenes to process (set to empty string to skip a dataset)
-# room1 office2 office3
-SCENES="${SCENES:-room1 office2 }"
+# room0 room1 office2 office3
+SCENES="${SCENES:-room0 room1 office2 office3}"
 # scene0046_00  scene0222_00 scene0389_00 scene0435_00
-SCANNET_SCENES="${SCANNET_SCENES:-}"
+SCANNET_SCENES="${SCANNET_SCENES:-scene0222_00 scene0389_00 scene0435_00 }"
 
 # Experiment labels
-EXP_SUFFIX="${EXP_SUFFIX:-batch_api}"
-DET_EXP_SUFFIX="${DET_EXP_SUFFIX:-s_detections_api}"
+EXP_SUFFIX="${EXP_SUFFIX:-qwen3batch}"
+DET_EXP_SUFFIX="${DET_EXP_SUFFIX:-qwen3_detections}"
 
 # Mapping script
 PY_SCRIPT="conceptgraph/slam/vlm_run/batch_vlm_mapping_api.py"
@@ -173,6 +174,7 @@ start_vllm() {
     ${VLLM_CMD} "${VLM_MODEL}" --port "${VLLM_PORT}" \
         --gpu-memory-utilization "${GPU_MEM_UTIL}" \
         --max-model-len "${MAX_MODEL_LEN}" \
+        --max-num-seqs 1 \
         --trust-remote-code \
         --dtype auto \
         > "${VLLM_LOG}" 2>&1 &
@@ -203,16 +205,24 @@ start_vllm() {
     return 1
 }
 
-ensure_vllm_alive() {
-    if curl -sf "${HEALTH_URL}" >/dev/null 2>&1; then
-        return 0
-    fi
+VLLM_FIRST_SCENE=true
+
+ensure_vllm_ready() {
     if [[ "${VLLM_MANAGED}" != "true" ]]; then
+        if curl -sf "${HEALTH_URL}" >/dev/null 2>&1; then
+            return 0
+        fi
         echo "[vllm-batch] ERROR: External vLLM server is no longer responding."
         echo "[vllm-batch] Please check your vLLM terminal and restart it."
         return 1
     fi
-    echo "[vllm-batch] Managed vLLM server is down. Restarting..."
+    if [[ "${VLLM_FIRST_SCENE}" == "true" ]]; then
+        VLLM_FIRST_SCENE=false
+        if curl -sf "${HEALTH_URL}" >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    echo "[vllm-batch] Recycling vLLM server for clean GPU state..."
     cleanup_vllm
     sleep 2
     VLLM_LOG=$(mktemp)
@@ -267,7 +277,7 @@ run_scene() {
         return 0
     fi
 
-    ensure_vllm_alive
+    ensure_vllm_ready
 
     echo ""
     echo "=================================================================="

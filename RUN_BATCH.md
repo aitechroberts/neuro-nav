@@ -50,8 +50,8 @@ This gives you full live logs from vLLM and lets you restart scenes without relo
 # Terminal 1 — start the vLLM server
 cd ~/cmu-grad/neuro-nav
 VLLM_USE_V1=0 vllm serve Qwen/Qwen2.5-VL-3B-Instruct-AWQ \
-  --port 8000 --gpu-memory-utilization 0.75 --max-model-len 3072 \
-  --trust-remote-code --dtype auto
+  --port 8000 --gpu-memory-utilization 0.5 --max-model-len 2048 \
+  --max-num-seqs 1 --trust-remote-code --dtype auto
 ```
 
 ```bash
@@ -69,7 +69,7 @@ cd ~/cmu-grad/neuro-nav
 VLM_MODEL="Qwen/Qwen2.5-VL-3B-Instruct-AWQ" ./shells/run_vllm_batch.sh
 ```
 
-If no server is detected on the port, the script starts vLLM in the background, monitors its health between scenes (auto-restarting if it crashes), and cleans up on exit. The log file path is printed at startup so you can `tail -f` it from another terminal.
+If no server is detected on the port, the script starts vLLM in the background and **kills and restarts it between every scene** to guarantee a clean GPU state. This adds ~30-60s of overhead per scene transition but prevents the engine crashes that occur when residual GPU memory accumulates across scenes. The log file path is printed at startup so you can `tail -f` it from another terminal. The server is also started with `--max-num-seqs 1` since the pipeline only makes one request at a time, reducing CUDA graph pre-allocation.
 
 ### Run with a different model
 
@@ -180,7 +180,9 @@ See [VLLM_API.md](VLLM_API.md) for the full model support matrix (18 models), VR
 HEALTH_TIMEOUT=600 ./shells/run_vllm_batch.sh
 ```
 
-**External vLLM server died mid-run** -- If you're running vLLM in a separate terminal and it crashes, the batch script will print "External vLLM server is no longer responding. Please check your vLLM terminal and restart it." Restart vLLM in your other terminal and re-run the batch script — it will pick up the new server.
+**vLLM crashes between scenes (self-managed mode)** -- This is expected and handled automatically. The script kills and restarts vLLM before every scene (except the first) to clear accumulated GPU memory. You'll see `Recycling vLLM server for clean GPU state...` in the output. The ~30-60s restart overhead per scene is the cost of stability.
+
+**External vLLM server died mid-run** -- If you're running vLLM in a separate terminal and it crashes, the batch script will print "External vLLM server is no longer responding. Please check your vLLM terminal and restart it." Restart vLLM in your other terminal and re-run the batch script — it will pick up the new server. Note: the script does **not** recycle external servers between scenes, so Option A is more fragile on tight-VRAM machines.
 
 **Pre-download a model manually** -- To download without running the pipeline:
 ```bash

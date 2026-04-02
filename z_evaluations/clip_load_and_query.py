@@ -166,11 +166,13 @@ class OpenCLIPModel(BaseCLIP):
 class ObjectDatabase:
     """
     Stores objects and their CLIP embeddings for retrieval.
+    Supports max-over-views similarity when per-view embeddings are available.
     """
     
     def __init__(self):
         self.objects: List[Dict] = []
         self.embeddings: Optional[np.ndarray] = None
+        self.per_view_embeddings: Dict[int, np.ndarray] = {}
         self.captions: List[str] = []
     
     def load_from_pkl(self, pkl_path: Path) -> int:
@@ -201,8 +203,8 @@ class ObjectDatabase:
         valid_objects = []
         captions = []
         
+        per_view_map = {}
         for obj in objects_data:
-            # Get embedding
             emb = obj.get('clip_ft')
             if emb is None:
                 continue
@@ -212,11 +214,20 @@ class ObjectDatabase:
             if isinstance(emb, np.ndarray):
                 emb = torch.from_numpy(emb)
             
-            # Normalize
             emb = F.normalize(emb.float().view(1, -1), dim=1)
+            obj_idx = len(embeddings)
             embeddings.append(emb.numpy())
-            
-            # Get caption
+
+            pv = obj.get('per_view_clip_ft')
+            if pv is not None and len(pv) > 0:
+                if isinstance(pv[0], np.ndarray):
+                    stacked = np.stack(pv, axis=0)
+                else:
+                    stacked = np.stack([v.numpy() if hasattr(v, 'numpy') else np.array(v) for v in pv], axis=0)
+                norms = np.linalg.norm(stacked, axis=1, keepdims=True)
+                stacked = stacked / np.maximum(norms, 1e-8)
+                per_view_map[obj_idx] = stacked
+
             caption = obj.get('object_caption') or obj.get('consolidated_caption', '')
             if isinstance(caption, list):
                 caption = caption[0] if caption else ''
@@ -233,9 +244,10 @@ class ObjectDatabase:
         
         self.objects = valid_objects
         self.embeddings = np.vstack(embeddings)
+        self.per_view_embeddings = per_view_map
         self.captions = captions
         
-        print(f"[ObjectDB] Loaded {len(self.objects)} objects")
+        print(f"[ObjectDB] Loaded {len(self.objects)} objects ({len(per_view_map)} with per-view features)")
         return len(self.objects)
     
     def load_from_json(self, obj_json_path: Path) -> int:
@@ -281,21 +293,37 @@ class ObjectDatabase:
     def retrieve_top_k(
         self,
         query_embedding: np.ndarray,
-        k: int = 5
+        k: int = 5,
+        use_max_over_views: bool = True,
     ) -> List[Tuple[int, float, str]]:
         """
         Retrieve top-k objects by cosine similarity.
+
+        When ``use_max_over_views`` is True and per-view embeddings are
+        available for an object, the similarity is the maximum cosine
+        similarity across all stored views (instead of just the running average).
         
         Returns:
             List of (index, similarity, caption) tuples
         """
         if self.embeddings is None:
             return []
+
+        query = query_embedding.reshape(1, -1)  # (1, D)
+
+        if use_max_over_views and self.per_view_embeddings:
+            similarities = np.zeros(len(self.embeddings), dtype=np.float32)
+            avg_sims = np.dot(self.embeddings, query.T).squeeze()
+            for obj_idx in range(len(self.embeddings)):
+                if obj_idx in self.per_view_embeddings:
+                    views = self.per_view_embeddings[obj_idx]  # (V, D)
+                    view_sims = np.dot(views, query.T).squeeze()
+                    similarities[obj_idx] = float(np.max(view_sims))
+                else:
+                    similarities[obj_idx] = float(avg_sims[obj_idx])
+        else:
+            similarities = np.dot(self.embeddings, query.T).squeeze()
         
-        # Compute similarities
-        similarities = np.dot(self.embeddings, query_embedding.T).squeeze()
-        
-        # Get top-k indices
         if k >= len(similarities):
             top_indices = np.argsort(similarities)[::-1]
         else:
