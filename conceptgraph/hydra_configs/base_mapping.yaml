@@ -30,7 +30,7 @@ exit_early_file: ${repo_root}/conceptgraph/hydra_configs/early_exit.json
 device: cuda
 
 use_iou: !!bool True
-spatial_sim_type: overlap # "iou", "giou", "overlap"
+spatial_sim_type: iou # "iou", "giou", "overlap", "iou_accurate", "giou_accurate"
 phys_bias: 0.0
 match_method: "sim_sum" # "sep_thresh", "sim_sum"
 # Only when match_method=="sep_thresh"
@@ -39,15 +39,34 @@ physical_threshold: 0.5
 # Only when match_method=="sim_sum"
 sim_threshold: 1.2
 
+# 3D bbox IoU OR-condition for merging (Sparse3DPR Eq. 7)
+# Set to 0.25 for sparse mode, 0 to disable
+iou_merge_kappa: 0.25
+
 # For contain_number
 use_contain_number: !!bool False
 contain_area_thresh: 0.95
 contain_mismatch_penalty: 0.5
 
-# Selection criteria on the 2D masks
+# Pipeline geometry mode: "trajectory" (RGBD depth unprojection, default)
+#                        "gt_mesh"    (ground-truth mesh vertex lookup)
+#                        "sparse"     (DUSt3R RGB-only point map lifting)
+pipeline_mode: ${oc.env:PIPELINE_MODE,trajectory}
+
+# Segmentation backend: "yolo_sam"       (closed-vocab YOLO-World + SAM box-prompted)
+#                       "sam_auto"       (class-agnostic SAM automatic mask generation)
+#                       "gt_instances"   (ground-truth instance labels from mesh — gt_mesh mode only)
+segmentation_backend: sam_auto
+
+# Selection criteria on the 2D masks (used by both backends)
 mask_area_threshold: 25 # mask with pixel area less than this will be skipped
-mask_conf_threshold: 0.25 # mask with lower confidence score will be skipped
-max_bbox_area_ratio: 0.5 # boxes with larger areas than this will be skipped
+mask_conf_threshold: 0.25 # mask with lower confidence score will be skipped (yolo_sam only)
+max_bbox_area_ratio: 0.9 # boxes with larger areas than this will be skipped
+
+# SAM automatic mode filter parameters (sam_auto backend only)
+sam_auto_min_mask_area_pixels: 100      # drop tiny fragment masks
+sam_auto_max_mask_area_fraction: 0.95   # drop masks covering nearly the entire frame
+sam_auto_nms_iou_threshold: 0.7         # NMS IoU threshold for heavily overlapping masks
 
 min_points_threshold: 16 # projected and sampled pcd with less points will be skipped
 
@@ -94,3 +113,27 @@ use_rerun: !!bool False
 save_rerun: !!bool False
 
 latest_pcd_filepath: ${repo_root}/latest_pcd_save
+
+# =============================================================================
+# gt_mesh mode — ground-truth mesh geometry
+# =============================================================================
+mesh_path: ${oc.env:MESH_PATH,}
+mesh_format: ${oc.env:MESH_FORMAT,replica}       # "replica", "scannetpp", "ai2thor", "matterport"
+instance_label_key: "objectId"
+instance_class_map: ${oc.env:INSTANCE_CLASS_MAP,}
+gt_mesh_best_views_k: 5
+gt_mesh_crop_scale: 1.5
+gt_mesh_min_visible_points: 50
+
+# =============================================================================
+# sparse mode — DUSt3R RGB-only reconstruction
+# =============================================================================
+image_dir: ${oc.env:IMAGE_DIR,}
+dust3r_model: ${oc.env:DUST3R_MODEL,naver/DUSt3R_ViTLarge_BaseDecoder_512_dpt}
+dust3r_image_size: 512
+dust3r_batch_size: 1
+dust3r_niter: 300
+dust3r_schedule: "cosine"
+dust3r_lr: 0.01
+dust3r_scene_graph: "complete"     # "complete", "swin", "logwin" (for >20 images)
+dust3r_min_confidence: 0.5

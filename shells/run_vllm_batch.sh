@@ -53,7 +53,10 @@ SCANNET_SCENES="${SCANNET_SCENES:-}"
 EXP_SUFFIX="${EXP_SUFFIX:-batch_api}"
 DET_EXP_SUFFIX="${DET_EXP_SUFFIX:-s_detections_api}"
 
-# Mapping script
+# Pipeline mode: "all-in-one" (default) or "staged"
+PIPELINE_MODE="${PIPELINE_MODE:-all-in-one}"
+
+# Mapping script (used for all-in-one mode; staged mode uses run_staged_pipeline.sh)
 PY_SCRIPT="conceptgraph/slam/vlm_run/batch_vlm_mapping_api.py"
 
 # Mapping controls
@@ -127,6 +130,7 @@ echo "  vLLM command:      ${VLLM_CMD}"
 echo "  GPU Mem Util:      ${GPU_MEM_UTIL}"
 echo "  Max Model Len:     ${MAX_MODEL_LEN}"
 echo "  Port:              ${VLLM_PORT}"
+echo "  Pipeline Mode:     ${PIPELINE_MODE}"
 echo "  Prompt Config:     ${PROMPT_CONFIG}"
 echo "  Extract Encoder:   ${EXTRACT_ENCODER}"
 echo "  Replica Scenes:    ${SCENES:-<none>}"
@@ -298,11 +302,19 @@ run_scene() {
     OVERRIDES+=("vlm_api_url=${VLM_API_URL}")
     OVERRIDES+=("vlm_model_name=${VLM_MODEL}")
 
-    echo "[vllm-batch] Launching: ${PYTHON_BIN} ${PY_SCRIPT} for ${SCENE}..."
-    set +e
-    "${PYTHON_BIN}" "${PY_SCRIPT}" "${OVERRIDES[@]}"
-    local RET=$?
-    set -e
+    if [[ "${PIPELINE_MODE}" == "staged" ]]; then
+        echo "[vllm-batch] Launching staged pipeline for ${SCENE}..."
+        set +e
+        bash "${REPO_ROOT}/shells/run_staged_pipeline.sh" "${OVERRIDES[@]}"
+        local RET=$?
+        set -e
+    else
+        echo "[vllm-batch] Launching: ${PYTHON_BIN} ${PY_SCRIPT} for ${SCENE}..."
+        set +e
+        "${PYTHON_BIN}" "${PY_SCRIPT}" "${OVERRIDES[@]}"
+        local RET=$?
+        set -e
+    fi
 
     if [[ ${RET} -ne 0 ]]; then
         echo "[vllm-batch][error] Mapping failed for ${SCENE} (exit code ${RET}). Skipping upload."

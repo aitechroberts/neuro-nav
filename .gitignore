@@ -9,7 +9,7 @@ manipulation/contact_graspnet/checkpoints
 manipulation/dataset
 env_vars.bash
 *.bash.template
-
+.cursor/
 td.json
 .env
 .terraform/

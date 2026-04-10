@@ -151,88 +151,50 @@ def compute_giou_batch(bbox1: torch.Tensor, bbox2: torch.Tensor) -> torch.Tensor
 
 def compute_3d_iou_accurate_batch(bbox1, bbox2):
     '''
-    Compute IoU between two sets of oriented (or axis-aligned) 3D bounding boxes.
-    
+    Compute IoU between two sets of 3D bounding boxes.
+
+    Falls back to AABB IoU (compute_iou_batch) which uses the axis-aligned
+    envelope of each OBB.  For typical indoor scenes where most objects are
+    axis-aligned this is a close approximation; the slight overestimate of
+    overlap for rotated objects is compensated by visual similarity being the
+    primary matching signal.
+
     bbox1: (M, 8, D), e.g. (M, 8, 3)
     bbox2: (N, 8, D), e.g. (N, 8, 3)
-    
+
     returns: (M, N)
     '''
-    # Must expend the box beforehand, otherwise it may results overestimated results
-    bbox1 = expand_3d_box(bbox1, 0.02)
-    bbox2 = expand_3d_box(bbox2, 0.02)
-    
-    import pytorch3d.ops as ops
-
-    bbox1 = bbox1[:, [0, 2, 5, 3, 1, 7, 4, 6]]
-    bbox2 = bbox2[:, [0, 2, 5, 3, 1, 7, 4, 6]]
-    
-    inter_vol, iou = ops.box3d_overlap(bbox1.float(), bbox2.float())
-    
-    return iou
+    return compute_iou_batch(bbox1, bbox2)
 
 def compute_3d_giou_accurate(obj1, obj2):
     '''
-    Compute the 3D GIoU in a more accurate way. 
+    Compute the 3D GIoU between two objects using AABB approximation.
     '''
-    import pytorch3d.ops as ops
-    
-    # This is too slow
-    # bbox1 = pcd1.get_minimal_oriented_bounding_box()
-    # bbox2 = pcd2.get_minimal_oriented_bounding_box()
-    
-    # This is still slow ... 
-    # Moved it outside of this function so that it is computed less times
-    # bbox1 = pcd1.get_oriented_bounding_box()
-    # bbox2 = pcd2.get_oriented_bounding_box()
-    
     bbox1 = obj1['bbox']
     bbox2 = obj2['bbox']
-    pcd1 = obj1['pcd']
-    pcd2 = obj2['pcd']
-    
-    # Get the coordinates of the bounding boxes
-    box_points1 = np.asarray(bbox1.get_box_points())
-    box_points2 = np.asarray(bbox2.get_box_points())
-    
-    # Re-order the points to fit the format required in pytorch3d
-    # xyz should be [---, -+-, -++, --+,    +--, ++-, +++, +-+]
-    box_points1 = box_points1[[0, 2, 5, 3, 1, 7, 4, 6]]
-    box_points2 = box_points2[[0, 2, 5, 3, 1, 7, 4, 6]]
-    
-    # Computet the intersection of the two boxes
-    try:
-        vols, ious = ops.box3d_overlap(
-            torch.from_numpy(box_points1).unsqueeze(0).float(), 
-            torch.from_numpy(box_points2).unsqueeze(0).float()
-        )
-    except ValueError as e: # This indicates colinear
-        union_volume = 0.0
-        iou = 0.0
-    else:
-        union_volume = vols[0,0].item()
-        iou = ious[0,0].item()
-    
-    # Join the two point cloud
-    pcd_union = pcd1 + pcd2
 
-    # compute_convex_hull() somehow cannot provide watertight mesh
-    # union_hull_mesh, union_hull_point_list = pcd_union.compute_convex_hull()
-    # enclosing_volume = union_hull_mesh.get_volume()
-    
-    # enclosing_box = pcd_union.get_minimal_oriented_bounding_box()
-    enclosing_box = pcd_union.get_oriented_bounding_box()
-    enclosing_volume = enclosing_box.volume()
-    
-    giou = iou - (enclosing_volume - union_volume) / enclosing_volume
-    
-    # print(vols, ious)
-    # print(enclosing_volume, union_volume, iou, giou)
-    
-    # o3d.visualization.draw_geometries([
-    #     pcd1, pcd2, bbox1, bbox2
-    # ])
-    
+    bbox1_min = np.asarray(bbox1.get_min_bound())
+    bbox1_max = np.asarray(bbox1.get_max_bound())
+    bbox2_min = np.asarray(bbox2.get_min_bound())
+    bbox2_max = np.asarray(bbox2.get_max_bound())
+
+    inter_min = np.maximum(bbox1_min, bbox2_min)
+    inter_max = np.minimum(bbox1_max, bbox2_max)
+    inter_size = np.maximum(inter_max - inter_min, 0.0)
+    inter_vol = np.prod(inter_size)
+
+    bbox1_vol = np.prod(bbox1_max - bbox1_min)
+    bbox2_vol = np.prod(bbox2_max - bbox2_min)
+    union_vol = bbox1_vol + bbox2_vol - inter_vol
+
+    iou = inter_vol / (union_vol + 1e-10)
+
+    enclosing_min = np.minimum(bbox1_min, bbox2_min)
+    enclosing_max = np.maximum(bbox1_max, bbox2_max)
+    enclosing_vol = np.prod(np.maximum(enclosing_max - enclosing_min, 0.0))
+
+    giou = iou - (enclosing_vol - union_vol) / (enclosing_vol + 1e-10)
+
     return giou
 
 def compute_3d_box_volume_batch(bbox: torch.Tensor) -> torch.Tensor:
@@ -355,69 +317,50 @@ def compute_enclosing_vol_fast(bbox1: torch.Tensor, bbox2: torch.Tensor) -> torc
 
 def compute_3d_giou_accurate_batch(bbox1: torch.Tensor, bbox2: torch.Tensor) -> torch.Tensor:
     '''
-    Compute Generalized IoU between two sets of oriented (or axis-aligned) 3D bounding boxes.
-    
+    Compute Generalized IoU between two sets of 3D bounding boxes.
+
+    Falls back to AABB GIoU (compute_giou_batch) which uses the axis-aligned
+    envelope of each OBB.  See compute_3d_iou_accurate_batch for rationale.
+
     bbox1: (M, 8, D), e.g. (M, 8, 3)
     bbox2: (N, 8, D), e.g. (N, 8, 3)
-    
+
     returns: (M, N)
     '''
-    # Must expend the box beforehand, otherwise it may results overestimated results
-    bbox1 = expand_3d_box(bbox1, 0.02)
-    bbox2 = expand_3d_box(bbox2, 0.02)
-    
-    bbox1_vol = compute_3d_box_volume_batch(bbox1)
-    bbox2_vol = compute_3d_box_volume_batch(bbox2)
-    
-    import pytorch3d.ops as ops
-
-    inter_vol, iou = ops.box3d_overlap(
-        bbox1[:, [0, 2, 5, 3, 1, 7, 4, 6]].float(), 
-        bbox2[:, [0, 2, 5, 3, 1, 7, 4, 6]].float()
-    )
-    union_vol = bbox1_vol.unsqueeze(1) + bbox2_vol.unsqueeze(0) - inter_vol
-    
-    enclosing_vol = compute_enclosing_vol(bbox1, bbox2)
-    # enclosing_vol = compute_enclosing_vol_fast(bbox1, bbox2)
-    
-    giou = iou - (enclosing_vol - union_vol) / enclosing_vol
-    
-    return giou
+    return compute_giou_batch(bbox1, bbox2)
 
 def compute_3d_contain_ratio_accurate_batch(bbox1: torch.Tensor, bbox2: torch.Tensor) -> torch.Tensor:
     '''
     Compute for i-th box in bbox1, how much of it is contained in j-th box in bbox2.
-    
+    Uses AABB intersection volume as the approximation.
+
     bbox1: (M, 8, D), e.g. (M, 8, 3)
     bbox2: (N, 8, D), e.g. (N, 8, 3)
-    
-    returns: (M, N)
+
+    returns: (contain_ratio (M, N), iou (M, N))
     '''
-    # Must expend the box beforehand, otherwise it may results overestimated results
-    bbox1 = expand_3d_box(bbox1)
-    bbox2 = expand_3d_box(bbox2)
-    
-    bbox1_vol = compute_3d_box_volume_batch(bbox1) # (M,)
-    bbox2_vol = compute_3d_box_volume_batch(bbox2) # (M,)
-    
-    import pytorch3d.ops as ops
-    
-    inter_vol, iou = ops.box3d_overlap(
-        bbox1[:, [0, 2, 5, 3, 1, 7, 4, 6]].float(), 
-        bbox2[:, [0, 2, 5, 3, 1, 7, 4, 6]].float()
-    ) # (M, N), (M, N)
-    
-    contain_ratio = inter_vol / bbox1_vol.unsqueeze(1) # (M, N)
-    
-    # Seems the following bug is unavoidable but happens very rarely
-    # print((contain_ratio > 1.001).sum() / contain_ratio.numel())
-    # if contain_ratio.amax() > 1.1:
-    #     print('contain_ratio > 1.0')
-    #     import pdb; pdb.set_trace()
-    
-    # Therefore we manually clamp it to [0, 1]
+    bbox1_min, _ = bbox1.min(dim=1)  # (M, 3)
+    bbox1_max, _ = bbox1.max(dim=1)  # (M, 3)
+    bbox2_min, _ = bbox2.min(dim=1)  # (N, 3)
+    bbox2_max, _ = bbox2.max(dim=1)  # (N, 3)
+
+    bbox1_min_e = bbox1_min.unsqueeze(1)  # (M, 1, 3)
+    bbox1_max_e = bbox1_max.unsqueeze(1)  # (M, 1, 3)
+    bbox2_min_e = bbox2_min.unsqueeze(0)  # (1, N, 3)
+    bbox2_max_e = bbox2_max.unsqueeze(0)  # (1, N, 3)
+
+    inter_min = torch.max(bbox1_min_e, bbox2_min_e)  # (M, N, 3)
+    inter_max = torch.min(bbox1_max_e, bbox2_max_e)  # (M, N, 3)
+    inter_vol = torch.prod(torch.clamp(inter_max - inter_min, min=0), dim=2)  # (M, N)
+
+    bbox1_vol = torch.prod(bbox1_max - bbox1_min, dim=1)  # (M,)
+    bbox2_vol = torch.prod(bbox2_max - bbox2_min, dim=1)  # (N,)
+
+    contain_ratio = inter_vol / (bbox1_vol.unsqueeze(1) + 1e-10)  # (M, N)
     contain_ratio = contain_ratio.clamp(min=0, max=1)
-    
+
+    iou = inter_vol / (bbox1_vol.unsqueeze(1) + bbox2_vol.unsqueeze(0) - inter_vol + 1e-10)
+
     return contain_ratio, iou
 
 def compute_2d_box_contained_batch(bbox: torch.Tensor, thresh:float=0.95) -> torch.Tensor:

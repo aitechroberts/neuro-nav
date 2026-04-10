@@ -1,4 +1,5 @@
 from conceptgraph.utils.logging_metrics import MappingTracker
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -21,6 +22,23 @@ from conceptgraph.utils.optional_wandb_wrapper import OptionalWandB
 owandb = OptionalWandB()
 
 tracker = MappingTracker()
+
+
+def compute_3d_bbox_iou(bbox_a, bbox_b) -> float:
+    """Axis-aligned 3D bounding box IoU. Pure numpy.
+
+    Accepts Open3D AxisAlignedBoundingBox objects (or anything with
+    ``min_bound`` / ``max_bound`` attributes).
+    """
+    min_a, max_a = np.asarray(bbox_a.min_bound), np.asarray(bbox_a.max_bound)
+    min_b, max_b = np.asarray(bbox_b.min_bound), np.asarray(bbox_b.max_bound)
+    inter_min = np.maximum(min_a, min_b)
+    inter_max = np.minimum(max_a, max_b)
+    inter_dims = np.maximum(inter_max - inter_min, 0.0)
+    inter_vol = np.prod(inter_dims)
+    vol_a = np.prod(np.maximum(max_a - min_a, 0.0))
+    vol_b = np.prod(np.maximum(max_b - min_b, 0.0))
+    return float(inter_vol / (vol_a + vol_b - inter_vol + 1e-10))
 
 
 def compute_spatial_similarities(spatial_sim_type: str, detection_list: DetectionList, objects: MapObjectList, downsample_voxel_size) -> torch.Tensor:
@@ -81,25 +99,51 @@ def aggregate_similarities(match_method: str, phys_bias: float, spatial_sim: tor
     return sims
 
 def match_detections_to_objects(
-    agg_sim: torch.Tensor, detection_threshold: float = float('-inf')
+    agg_sim: torch.Tensor,
+    detection_threshold: float = float('-inf'),
+    detection_list: "DetectionList | None" = None,
+    objects: "MapObjectList | None" = None,
+    iou_merge_kappa: float = 0.0,
 ) -> List[Optional[int]]:
-    """
-    Matches detections to objects based on similarity, returning match indices or None for unmatched.
+    """Match detections to objects based on similarity with IoU fallback.
 
-    Args:
-        agg_sim: Similarity matrix (detections vs. objects).
-        detection_threshold: Threshold for a valid match (default: -inf).
-
-    Returns:
-        List of matching object indices (or None if unmatched) for each detection.
+    For each detection:
+      1. If ``agg_sim[i].max() > detection_threshold`` → match (standard).
+      2. Else if ``iou_merge_kappa > 0`` and 3D bbox IoU with any existing
+         object > kappa → match to highest-IoU object (Sparse3DPR Eq. 7).
+      3. Else → new object (None).
     """
-    match_indices = []
+    match_indices: List[Optional[int]] = []
     for detected_obj_idx in range(agg_sim.shape[0]):
         max_sim_value = agg_sim[detected_obj_idx].max()
-        if max_sim_value <= detection_threshold:
-            match_indices.append(None)
-        else:
+        if max_sim_value > detection_threshold:
             match_indices.append(agg_sim[detected_obj_idx].argmax().item())
+            continue
+
+        # IoU OR-condition fallback
+        if (
+            iou_merge_kappa > 0
+            and detection_list is not None
+            and objects is not None
+            and len(objects) > 0
+        ):
+            det_bbox = detection_list[detected_obj_idx].get("bbox")
+            if det_bbox is not None:
+                best_iou = 0.0
+                best_obj_idx = None
+                for obj_idx, obj in enumerate(objects):
+                    obj_bbox = obj.get("bbox")
+                    if obj_bbox is None:
+                        continue
+                    iou = compute_3d_bbox_iou(det_bbox, obj_bbox)
+                    if iou > best_iou:
+                        best_iou = iou
+                        best_obj_idx = obj_idx
+                if best_iou > iou_merge_kappa and best_obj_idx is not None:
+                    match_indices.append(best_obj_idx)
+                    continue
+
+        match_indices.append(None)
 
     return match_indices
 

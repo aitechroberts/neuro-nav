@@ -8,6 +8,11 @@ defaults:
   - prompts_standard
   - _self_
 
+# Segmentation backend override (set via env or leave to base_mapping default)
+# "sam_auto" = class-agnostic SAM automatic masks (open-vocabulary, recommended)
+# "yolo_sam" = YOLO-World closed-vocab detection + SAM box-prompted masks (legacy)
+segmentation_backend: ${oc.env:SEG_BACKEND,sam_auto}
+
 # Detection experiment and mapping experiment labels
 detections_exp_suffix: s_detections_api
 force_detection: !!bool True
@@ -64,3 +69,31 @@ use_rerun: !!bool False
 save_rerun: !!bool False
 
 use_wandb: ${oc.env:USE_WANDB,false}
+
+# =============================================================================
+# Two-phase pipeline stage configs
+# =============================================================================
+
+# embed.py config
+embed:
+  encoder_name: ${oc.env:EMBED_ENCODER,openai/clip-vit-large-patch14}
+  mode: phase_a                    # "phase_a" or "re_embed"
+  use_sam_fusion: !!bool false     # +3.3% accuracy per Bare Necessities Table 9
+
+# caption.py config (Phase B)
+caption:
+  vlm_name: ${oc.env:CAPTION_VLM,Qwen/Qwen3-VL-2B-Instruct}
+  top_k: 10                        # top-K views per object by n_points
+
+# semantic_assemble.py config (Phase B)
+assemble:
+  encoder: ${oc.env:ASSEMBLE_ENCODER,openai_clip-vit-large-patch14}
+  vlm: ${oc.env:ASSEMBLE_VLM,Qwen_Qwen3-VL-2B-Instruct}
+
+# eval.py config (Phase B)
+eval:
+  encoder: ${oc.env:EVAL_ENCODER,openai_clip-vit-large-patch14}
+  vlm: ${oc.env:EVAL_VLM,Qwen_Qwen3-VL-2B-Instruct}
+  gt_labels: config/eval_1687_labels.txt
+  categories: config/grouped_17_categories.json
+  use_subgraph: !!bool false

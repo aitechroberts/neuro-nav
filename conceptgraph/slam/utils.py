@@ -294,7 +294,7 @@ def merge_obj2_into_obj1(obj1, obj2, downsample_voxel_size, dbscan_remove_noise,
     extend_attributes = ['image_idx', 'mask_idx', 'color_path', 'class_id', 'mask', 'xyxy', 'conf', 'contain_number', 'captions']
     add_attributes = ['num_detections', 'num_obj_in_class']
     skip_attributes = ['id', 'class_name', 'is_background', 'new_counter', 'curr_obj_num', 'inst_color']  # 'inst_color' just keeps obj1's
-    custom_handled = ['pcd', 'bbox', 'clip_ft', 'text_ft', 'n_points', 'vlm_vit_ft', 'vlm_proj_ft']
+    custom_handled = ['pcd', 'bbox', 'clip_ft', 'text_ft', 'n_points', 'vlm_vit_ft', 'vlm_proj_ft', 'per_view_records', 'crop_path']
 
     # Check for unhandled keys and throw an error if there are
     all_handled_keys = set(extend_attributes + add_attributes + skip_attributes + custom_handled)
@@ -340,13 +340,21 @@ def merge_obj2_into_obj1(obj1, obj2, downsample_voxel_size, dbscan_remove_noise,
             obj1[vlm_key] = (obj1[vlm_key] * n_obj1_det + obj2[vlm_key] * n_obj2_det) / (n_obj1_det + n_obj2_det)
             obj1[vlm_key] = F.normalize(obj1[vlm_key], dim=0)
 
-    # merge text_ft
-    # obj2['text_ft'] = to_tensor(obj2['text_ft'], device)
-    # obj1['text_ft'] = to_tensor(obj1['text_ft'], device)
-    # obj1['text_ft'] = (obj1['text_ft'] * n_obj1_det +
-    #                    obj2['text_ft'] * n_obj2_det) / (
-    #                    n_obj1_det + n_obj2_det)
-    # obj1['text_ft'] = F.normalize(obj1['text_ft'], dim=0)
+    # Append incoming detection to per_view_records for Phase B view selection.
+    # n_points is the ranking signal for top-K view selection in captioning.
+    if "per_view_records" not in obj1:
+        obj1["per_view_records"] = []
+    clip_ft_np = None
+    if obj2.get("clip_ft") is not None:
+        ft = obj2["clip_ft"]
+        clip_ft_np = ft.detach().cpu().numpy() if hasattr(ft, "cpu") else np.asarray(ft)
+    obj1["per_view_records"].append({
+        "frame_idx": obj2.get("image_idx", [None])[-1] if isinstance(obj2.get("image_idx"), list) else obj2.get("image_idx"),
+        "clip_ft": clip_ft_np,
+        "n_points": len(np.asarray(obj2["pcd"].points)),
+        "crop_path": obj2.get("crop_path", ""),
+        "crop_bbox": None,
+    })
 
     return obj1
 
@@ -801,36 +809,32 @@ def merge_objects(
         return objects
     
 def filter_captions(captions, detection_class_labels):
-    # Gracefully handle missing captions or labels
     if detection_class_labels is None:
         return []
 
     if captions is None:
         captions = []
 
-    # Create a dictionary to map id to the index in the captions list
+    # If captions are plain strings (e.g. when VLM is disabled), wrap them
+    if captions and isinstance(captions[0], str):
+        wrapped = []
+        for i, c in enumerate(captions):
+            wrapped.append({"id": str(i), "name": "", "caption": c if c else None})
+        captions = wrapped
+
     captions_index = {item['id']: index for index, item in enumerate(captions)}
-    
-    # Initialize a new list to store the cleaned and matched captions
+
     new_captions = []
-    
-    # Process each detection class label
     for label in detection_class_labels:
-        # Split the label by spaces
         parts = label.split()
-        # The last part is the id
         id_str = parts[-1]
-        # The rest are the name
         name = ' '.join(parts[:-1])
-        
-        # Check if the id exists in the captions dictionary
+
         if id_str in captions_index:
-            # Add the caption from the captions list to the new list
             new_captions.append(captions[captions_index[id_str]])
         else:
-            # Add a new entry with a default/empty caption to avoid NoneType errors downstream
             new_captions.append({"id": id_str, "name": name, "caption": None})
-    
+
     return new_captions
 
 
@@ -1087,20 +1091,24 @@ def make_detection_list_from_pcd_and_gobs(
     '''
     global tracker
     detection_list = DetectionList()
-    # bg_detection_list = DetectionList()
+    classes_arr = obj_classes.get_classes_arr()
+    bg_classes_arr = obj_classes.get_bg_classes_arr()
+
     for mask_idx in range(len(gobs['mask'])):
-        if obj_pcds_and_bboxes[mask_idx] is None: # pointcloud was discarded
+        if obj_pcds_and_bboxes[mask_idx] is None:
             continue
 
         curr_class_name = gobs['classes'][gobs['class_id'][mask_idx]]
-        curr_class_idx = obj_classes.get_classes_arr().index(curr_class_name)
-        
-        is_bg_object = bool(curr_class_name in obj_classes.get_bg_classes_arr())
-        
-        # print(f"Line 937, tracker.total_object_count INCREMENTED: {tracker.total_object_count }")
+
+        # In class-agnostic mode (sam_auto), the class won't be in the vocabulary
+        try:
+            curr_class_idx = classes_arr.index(curr_class_name)
+        except ValueError:
+            curr_class_idx = -1
+
+        is_bg_object = bool(curr_class_name in bg_classes_arr)
         num_obj_in_class = tracker.curr_class_count[curr_class_name]
-        
-        
+
         detected_object = {
             'id' : uuid.uuid4(),
             'image_idx' : [image_idx],                             # idx of the image
